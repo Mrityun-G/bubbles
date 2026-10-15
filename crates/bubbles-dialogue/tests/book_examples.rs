@@ -2,8 +2,11 @@
 
 mod common;
 
-use bubbles::{DialogueEvent, HashMapStorage, Runner, compile};
-use common::{drain, next_options};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use bubbles::{DialogueEvent, HashMapStorage, Runner, RunnerBuilder, Value, compile};
+use common::{drain, drain_line_texts, next_options};
 
 const FIRST_DIALOGUE: &str = r"
 title: Start
@@ -77,4 +80,48 @@ fn options_snippet_demonstrates_once_options() {
         !second_options[rules_idx].available,
         "the rules option should be unavailable after it has been selected"
     );
+}
+
+/// The `why.md` chapter claims that registering a function under a built-in's
+/// name replaces it, and that doing so makes the event stream reproducible.
+/// This is the snippet from that chapter, asserted.
+///
+/// Deliberately feature-agnostic: it must hold whether or not `rand` is
+/// compiled in, because replacing the RNG is the recommended route to
+/// *reproducible* randomness rather than no randomness.
+#[test]
+fn why_chapter_seeded_function_override_is_deterministic() {
+    const SRC: &str = "title: Roll\n---\n<<declare $n = 0>>\n<<set $n = random_range(1, 6)>>\nNarrator: rolled {$n}.\n<<set $n = random_range(1, 6)>>\nNarrator: rolled {$n}.\n===\n";
+
+    fn play_once() -> Vec<String> {
+        let program = compile(SRC).unwrap();
+
+        // A fixed, replayable sequence standing in for the built-in RNG.
+        let rolls = Arc::new(vec![3.0, 1.0, 4.0, 1.0, 5.0]);
+        let cursor = Arc::new(AtomicUsize::new(0));
+
+        let mut runner = RunnerBuilder::new(program, HashMapStorage::new())
+            .with_function("random_range", move |_args| {
+                let i = cursor.fetch_add(1, Ordering::Relaxed) % rolls.len();
+                Ok(Value::Number(rolls[i]))
+            })
+            .build();
+        runner.start("Roll").unwrap();
+        drain_line_texts(&mut runner)
+    }
+
+    let first = play_once();
+    assert_eq!(
+        first,
+        vec!["rolled 3.", "rolled 1."],
+        "the registered function should replace the built-in `random_range`"
+    );
+
+    for _ in 0..8 {
+        assert_eq!(
+            play_once(),
+            first,
+            "same program, same variables, same choices must give the same events"
+        );
+    }
 }

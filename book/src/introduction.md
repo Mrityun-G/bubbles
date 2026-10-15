@@ -1,8 +1,8 @@
 # Introduction
 
-Welcome to **Bubbles** - a small, friendly dialogue runtime for Rust games.
+Welcome to **Bubbles** - an embeddable, deterministic dialogue runtime for Rust. Scripted conversation as a state machine you drive, not a narrative authoring suite.
 
-You write branching dialogue in `.bub` scripts. Bubbles compiles them once at startup and hands you a simple loop: ask for the next event, show it on screen, select an option, repeat. That is the whole API.
+You write branching dialogue in `.bub` scripts. Bubbles compiles them to a plain Rust struct and hands you one loop: ask for the next event, show it, select an option, repeat.
 
 ```rust,ignore
 while let Some(event) = runner.next_event()? {
@@ -10,24 +10,31 @@ while let Some(event) = runner.next_event()? {
 }
 ```
 
-No async. No global state. No engine lock-in. Bubbles runs wherever Rust runs - Bevy, Godot, Macroquad, a custom engine, the web via WebAssembly, even a terminal. **Unity and other native hosts** can use the **`bubbles-ffi`** C library (JSON events, P/Invoke); see [Unity and native hosts (C ABI)](./integration/unity-and-native.md).
+That loop is the entire integration surface. Nothing happens between calls to `next_event()`, there is no async anywhere in the library, and there is no global state, so Bubbles fits inside a loop you already own rather than asking for one of its own. There is no bytecode and no binary format either: `compile()` returns a struct, so there is nothing to load at runtime.
+
+So Bubbles runs wherever Rust runs: a Bevy system, a Godot-rust node, a Macroquad or Fyrox frame, a custom engine, a plain binary, a terminal, or a browser tab via WebAssembly.
+
+## Who this is for
+
+**If you build non-game interactive software** (education, training, simulation, onboarding, kiosks, exhibits), you have probably found that the established dialogue tools assume a game engine, an authoring suite, and an asset pipeline you have no use for. Bubbles assumes none of them. It is a library you call. It runs wherever Rust runs, including a browser tab via WebAssembly, and it behaves identically every run, which matters a great deal when "this hint appeared for one learner and not another" is a bug you have to reproduce.
+
+**If you build deterministic game systems** (replay, lockstep netcode, server-authoritative dialogue), the same properties are what you were looking for. A runtime with no hidden clock and no ambient randomness is one you can put inside a simulation you need to reproduce exactly.
+
+If you want a tool that lets a non-programmer write and preview dialogue with a graph editor and live reload, [Yarn Spinner](https://yarnspinner.dev) or [Ink](https://github.com/inkle/ink) will serve you better, and the [Embedding and Determinism](./why.md) chapter is honest about why.
 
 ## What Bubbles gives you
 
+- A pull-based event API with no async, no callbacks, and no global state
 - A tiny text format for nodes, lines, options, and branching
 - Typed variables (`Number`, `Text`, `Bool`) with a real expression language
 - Jumps, detours, conditionals, `<<once>>` blocks, interpolation, host commands
 - Inline markup (`[b]text[/b]`, `[wave]text[/wave]`, `[pause /]`) stripped to byte-precise spans your renderer consumes
-- Line groups and node groups for variety (no more hearing the same bark twice)
-- A pluggable localisation seam, custom functions, and custom saliency strategies
-- Save/load snapshots, with serde support for persistence
-- An allocation-conscious runtime with zero async primitives
+- Line groups and node groups for variety, chosen by a saliency strategy you can replace
+- A pluggable localisation seam and custom functions that can override the built-ins
+- Node-granularity save/load snapshots, with serde support for persistence
+- Three required dependencies, `unsafe_code` denied, and a WebAssembly build checked in CI
 
-## Who Bubbles is for
-
-You want dialogue in a Rust game. You do not want a 30 MB runtime, a scripting VM, or a DSL that fights with your borrow checker. You want something you can read the source of in an afternoon and drop into a release build without a second thought.
-
-If that sounds like you, you are in the right place.
+Read [Embedding and Determinism](./why.md) next if you are still deciding whether this library fits your project: it covers both guarantees in detail, and the places where they stop.
 
 ## A taste of `.bub`
 
@@ -61,6 +68,7 @@ That's the harbour example: a playable pirate dockside scene that covers most of
 
 The chapters are meant to be read in order, but each one stands on its own:
 
+- **[Embedding and Determinism](./why.md)** - the two guarantees this library is built around, and their limits.
 - **[Getting Started](./getting-started/first-dialogue.md)** - go from zero to a running dialogue in ten lines of Rust.
 - **[Tutorial](./tutorial/overview.md)** - build a real NPC scene from scratch, one feature at a time.
 - **[The .bub Language](./language/nodes-and-lines.md)** - every piece of the script format, one concept per page.
@@ -73,4 +81,4 @@ Ready? Let's write a dialogue.
 
 ---
 
-> **Next:** [Your First Dialogue](./getting-started/first-dialogue.md)
+> **Next:** [Embedding and Determinism](./why.md)
