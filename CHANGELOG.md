@@ -24,9 +24,30 @@ are not published to crates.io.
 - `CHANGELOG.md` (this file), backfilled across all 12 published releases.
 - Developer Certificate of Origin (DCO) sign-off requirement for contributions,
   documented in [CONTRIBUTING.md](CONTRIBUTING.md) and enforced by a PR check.
+- A versioned C header for `bubbles-ffi` at `crates/bubbles-ffi/include/bubbles_ffi.h`,
+  carrying `BUBBLES_ABI_VERSION` alongside the library version, with every
+  declaration documented. A test and `scripts/check-ffi-abi.sh` keep it from
+  drifting from the built library.
+- `crates/bubbles-ffi/ABI.md`, the C ABI stability policy: linkage, integer
+  widths, status codes, struct layout, the event JSON schema, who frees what,
+  threading rules, and an explicit list of what not to rely on.
+- Prebuilt `bubbles-ffi` shared libraries for Windows x64, macOS x64, macOS
+  arm64, macOS universal, and Linux x64, built by a workflow that attaches them
+  to a release draft. Each archive carries the library, the header, `ABI.md`,
+  and both licences, so a host needs no Rust toolchain.
+- `examples/c-host/`, a dependency-free C99 host that loads a `.bub` file, pumps
+  the event loop, and selects an option. CI builds and runs it.
+- `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
+  and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
 
 ### Fixed
 
+- The guide described the `NodeStarted` and `NodeComplete` FFI events as
+  carrying a `"title"` field; the runtime emits `"node"`. The header also
+  claimed `bubbles_runner_set_locale_json` merges into the existing locale
+  table, when it replaces it. Both would have misled a host author.
+- The guide's API index listed only two of the three shipped saliency
+  strategies; `RandomAvailable` is now linked alongside them.
 - `LICENSE-APACHE` now contains the full Apache License 2.0 text. It previously
   held only the short "how to apply the license" boilerplate notice, so the
   repository referenced Apache-2.0 without shipping its terms, and GitHub's
