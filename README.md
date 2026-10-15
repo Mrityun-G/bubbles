@@ -15,6 +15,8 @@ If you are building education software, a training simulation, an onboarding flo
 
 It works well for games too, and for the same reason: if your engine needs replay, lockstep, or server-authoritative dialogue, a runtime with no hidden clock and no ambient randomness is much easier to trust.
 
+A host that cannot link Rust goes through [`bubbles-ffi`](crates/bubbles-ffi/), a C ABI with [prebuilt binaries](https://github.com/ViezeVingertjes/bubbles/releases) for Windows, macOS, and Linux.
+
 ---
 
 ## Why you would choose this
