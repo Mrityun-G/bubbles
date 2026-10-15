@@ -24,9 +24,10 @@ use bubbles_ffi::{
     bubbles_compile_files, bubbles_copy_utf8, bubbles_last_error, bubbles_program_free,
     bubbles_program_node_exists, bubbles_program_node_tags_json, bubbles_program_node_titles_json,
     bubbles_program_variable_declarations_json, bubbles_runner_free, bubbles_runner_new,
-    bubbles_runner_new_with_saliency, bubbles_runner_next_event, bubbles_runner_register_function,
-    bubbles_runner_restore_session_json, bubbles_runner_restore_storage_json,
-    bubbles_runner_select_option, bubbles_runner_set_locale_json, bubbles_runner_set_saliency,
+    bubbles_runner_new_seeded, bubbles_runner_new_with_saliency, bubbles_runner_next_event,
+    bubbles_runner_register_function, bubbles_runner_restore_session_json,
+    bubbles_runner_restore_storage_json, bubbles_runner_select_option,
+    bubbles_runner_set_locale_json, bubbles_runner_set_saliency,
     bubbles_runner_snapshot_session_json, bubbles_runner_snapshot_storage_json,
     bubbles_runner_start, bubbles_runner_variable_get_json, bubbles_runner_variable_set_json,
     bubbles_string_free,
@@ -214,6 +215,15 @@ fn null_handles_are_reported_rather_than_dereferenced() {
                 &raw mut out_runner,
             ),
             "runner_new_with_saliency(NULL program)",
+        );
+        assert_reported(
+            bubbles_runner_new_seeded(
+                null,
+                BUBBLES_SALIENCY_FIRST_AVAILABLE,
+                7,
+                &raw mut out_runner,
+            ),
+            "runner_new_seeded(NULL program)",
         );
         assert_reported(
             bubbles_runner_start(null, n, nl),
@@ -442,6 +452,57 @@ fn a_rejected_constructor_call_leaves_the_program_owned_by_the_caller() {
 
     // And still the caller's to free.
     unsafe { bubbles_program_free(program) };
+}
+
+/// The seeded constructor shares `build_runner` with the other two, so what is
+/// worth testing is not the shared guard a third time but that the seed
+/// parameter did not buy itself an exemption from it: a seed is a plain `u64`
+/// with no invalid value, so every bad-argument case here is still a pointer or
+/// enum case, and all of them must behave exactly as the unseeded constructors
+/// do.
+///
+/// Both halves of the ownership rule in one test, because for this entry point
+/// they are the same claim read in two directions — NULL `out_runner` is
+/// rejected before the program is taken, and an invalid saliency kind is
+/// rejected after. As in the test above, the program is deliberately not freed
+/// after the second call.
+#[test]
+fn the_seeded_constructor_validates_exactly_as_the_unseeded_ones_do() {
+    let program = compile_ok(BASIC);
+
+    let rc = unsafe {
+        bubbles_runner_new_seeded(
+            program,
+            BUBBLES_SALIENCY_FIRST_AVAILABLE,
+            7,
+            std::ptr::null_mut(),
+        )
+    };
+    assert_reported(rc, "runner_new_seeded(NULL out_runner)");
+
+    // Not taken, so a seed is still choosable for this program.
+    let mut runner: *mut c_void = std::ptr::null_mut();
+    let rc = unsafe {
+        bubbles_runner_new_seeded(
+            program,
+            BUBBLES_SALIENCY_FIRST_AVAILABLE,
+            7,
+            &raw mut runner,
+        )
+    };
+    assert_eq!(rc, BUBBLES_OK, "{:?}", error());
+    assert!(!runner.is_null());
+    unsafe { bubbles_runner_free(runner) };
+
+    let program = compile_ok(BASIC);
+    let mut runner: *mut c_void = 0x1234_usize as *mut c_void;
+    let rc = unsafe { bubbles_runner_new_seeded(program, 99, 7, &raw mut runner) };
+    assert_reported(rc, "runner_new_seeded(invalid kind)");
+    assert_eq!(
+        runner, 0x1234_usize as *mut c_void,
+        "a failed constructor wrote *out_runner"
+    );
+    // Deliberately no `bubbles_program_free(program)`: consumed by the failed call.
 }
 
 /// The other half of the same rule. An invalid saliency kind is rejected

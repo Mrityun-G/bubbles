@@ -92,6 +92,15 @@ are not published to crates.io.
   of the save format and has to be identical on every target and in every build
   — `rand`'s own `SmallRng` is explicitly not reproducible across platforms or
   versions.
+- **`bubbles_runner_new_seeded` in the C ABI** — the same reproducible session
+  for a native host:
+  `int32_t bubbles_runner_new_seeded(void *program, int32_t saliency_kind, uint64_t seed, void **out_runner)`.
+  The existing constructors are OS-seeded, so a C or C# host had no way to
+  replay a script that rolls dice. It is a constructor rather than a `set_seed`
+  setter because a seed belongs to a session; pass
+  `BUBBLES_SALIENCY_FIRST_AVAILABLE` for the default strategy. Additive — the
+  ABI version stays at 1 and the header now declares 27 symbols, so a host
+  built against the previous header links and runs unchanged.
 - `CHANGELOG.md` (this file), backfilled across all 12 published releases.
 - Developer Certificate of Origin (DCO) sign-off requirement for contributions,
   documented in [CONTRIBUTING.md](CONTRIBUTING.md) and enforced by a PR check.
@@ -115,7 +124,11 @@ are not published to crates.io.
   the artifact gets *smaller*, and the module traps on the first line of
   dialogue. Compiling could not see that; running can.
 - `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
-  and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
+  and `cargo publish --dry-run --no-verify` runs in CI. Verification is a release
+  step rather than a CI one, because it builds the packaged tarball against the
+  registry copy of `bubbles-dialogue`, which between releases does not yet have
+  the API this crate calls; see [RELEASING.md](RELEASING.md). It remains
+  unpublished for now.
 
 ### Changed
 
