@@ -144,8 +144,10 @@ currently has none.
 ### About the 300-line file cap
 
 `scripts/check-file-sizes.sh` fails if any file matching `crates/*/src/**/*.rs`
-exceeds 300 non-blank lines. **Test files are not covered by this check** — only
-library sources.
+exceeds 300 non-blank lines. **Integration tests under `crates/*/tests/` are not
+covered** — write as much test code there as the change needs. Unit-test files do
+count, because they live beside the code in `src/` (for example
+`src/library/library_tests/`), so those get split into submodules as they grow.
 
 It is a prompt to split a file along a concept boundary, not a quality bar you
 have to hit on the first try. If you are near the limit and the natural split
