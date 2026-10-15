@@ -1,0 +1,21 @@
+// Dialogue for the C host example. Exercises every event kind the host handles:
+// NodeStarted, Line, Command, Options, NodeComplete, DialogueComplete.
+
+title: Tavern
+---
+<<declare $gold = 12>>
+
+Innkeeper: Evening. You look like you walked a long road. #line:inn_greet
+<<play_music "tavern_theme">>
+
+-> A room for the night, please.
+    Innkeeper: Six gold, and the stew is free.
+    <<set $gold = $gold - 6>>
+    Innkeeper: Sleep well. You have {$gold} gold left.
+-> Just information.
+    Innkeeper: Information is cheaper. What do you want to know?
+-> Nothing, sorry. <<if $gold > 100>>
+    Innkeeper: Suit yourself, moneybags.
+
+Innkeeper: Mind the step on your way out.
+===

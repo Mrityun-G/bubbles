@@ -1,0 +1,265 @@
+name: FFI prebuilt binaries
+
+# Builds the bubbles-ffi shared library for every supported platform so native hosts
+# (Unity, Godot .NET, C, C++) can adopt bubbles without installing a Rust toolchain.
+#
+# Triggers:
+#   - a `v*` tag -> build all targets and attach them to a DRAFT GitHub release
+#   - manual run -> build all targets; only drafts a release if you ask for one
+#
+# The release is always a draft and is never published: the artifacts are reviewed before
+# publishing, by hand. This workflow never touches crates.io. The `refuse to touch a
+# published release` guard below enforces that even if the tag is reused.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: "Also attach the artifacts to a draft release"
+        type: boolean
+        default: false
+      tag:
+        description: "Tag for the draft release (e.g. v2.0.0). Required with draft_release."
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            lib: bubbles_ffi.dll
+            # The MSVC import library: link against this, ship the DLL beside the .exe.
+            extra: bubbles_ffi.dll.lib
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            lib: libbubbles_ffi.dylib
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            lib: libbubbles_ffi.dylib
+          # Pinned to the oldest supported runner image to keep the glibc floor as low as
+          # possible. A newer image would raise the minimum glibc for every consumer, so
+          # this pin is deliberate - bump it only when the image is retired.
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            lib: libbubbles_ffi.so
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # strip=symbols drops debug and local symbols. Exported `no_mangle` symbols stay in
+      # the dynamic symbol table, so the ABI is unchanged and the artifact is much smaller.
+      - name: Build cdylib
+        shell: bash
+        run: |
+          RUSTFLAGS="-C strip=symbols" \
+            cargo build -p bubbles-ffi --release --target ${{ matrix.target }}
+
+      - name: Stage archive contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(cargo metadata --no-deps --format-version=1 \
+            | jq -r '.packages[] | select(.name=="bubbles-ffi") | .version')
+          NAME="bubbles-ffi-${VERSION}-${{ matrix.target }}"
+          echo "ARCHIVE_NAME=$NAME" >> "$GITHUB_ENV"
+
+          BUILT="target/${{ matrix.target }}/release"
+          mkdir -p "stage/$NAME"
+          cp "$BUILT/${{ matrix.lib }}" "stage/$NAME/"
+          if [ -n "${{ matrix.extra }}" ]; then
+            cp "$BUILT/${{ matrix.extra }}" "stage/$NAME/"
+          fi
+
+          # The header and the stability policy ship inside every archive, so a consumer
+          # who downloads one binary has everything needed to compile against it.
+          cp crates/bubbles-ffi/include/bubbles_ffi.h "stage/$NAME/"
+          cp crates/bubbles-ffi/ABI.md                "stage/$NAME/"
+          cp crates/bubbles-ffi/README.md             "stage/$NAME/"
+          cp LICENSE-MIT LICENSE-APACHE               "stage/$NAME/"
+
+      # Catches a stripped or mis-linked artifact that no longer exports what the shipped
+      # header promises - the exact failure a consumer would hit as a link error.
+      - name: Verify the shipped binary exports the shipped header's ABI
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          mkdir -p target/release
+          cp target/${{ matrix.target }}/release/libbubbles_ffi.so target/release/
+          bash scripts/check-ffi-abi.sh
+
+      - name: Archive (zip)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd stage && 7z a "../${ARCHIVE_NAME}.zip" "$ARCHIVE_NAME" >/dev/null)
+          sha256sum "${ARCHIVE_NAME}.zip" > "${ARCHIVE_NAME}.zip.sha256"
+
+      - name: Archive (tar.gz)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf "${ARCHIVE_NAME}.tar.gz" -C stage "$ARCHIVE_NAME"
+          shasum -a 256 "${ARCHIVE_NAME}.tar.gz" > "${ARCHIVE_NAME}.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: |
+            ${{ env.ARCHIVE_NAME }}.tar.gz
+            ${{ env.ARCHIVE_NAME }}.tar.gz.sha256
+            ${{ env.ARCHIVE_NAME }}.zip
+            ${{ env.ARCHIVE_NAME }}.zip.sha256
+          if-no-files-found: error
+
+  # Unity and most macOS hosts want a single universal binary, not two slices.
+  universal-macos:
+    name: macOS universal2
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: bubbles-ffi-*-apple-darwin
+          path: downloads
+
+      - name: lipo the slices together
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p extracted
+          for f in downloads/*/*.tar.gz; do tar -xzf "$f" -C extracted; done
+
+          X64=$(find extracted -path '*x86_64-apple-darwin*' -name libbubbles_ffi.dylib)
+          ARM=$(find extracted -path '*aarch64-apple-darwin*' -name libbubbles_ffi.dylib)
+          SRC=$(dirname "$ARM")
+          VERSION=$(basename "$SRC" | sed -E 's/^bubbles-ffi-(.*)-aarch64-apple-darwin$/\1/')
+          NAME="bubbles-ffi-${VERSION}-universal-apple-darwin"
+          echo "ARCHIVE_NAME=$NAME" >> "$GITHUB_ENV"
+
+          mkdir -p "stage/$NAME"
+          lipo -create "$X64" "$ARM" -output "stage/$NAME/libbubbles_ffi.dylib"
+          lipo -info "stage/$NAME/libbubbles_ffi.dylib"
+          cp "$SRC"/bubbles_ffi.h "$SRC"/ABI.md "$SRC"/README.md \
+             "$SRC"/LICENSE-MIT "$SRC"/LICENSE-APACHE "stage/$NAME/"
+
+          tar -czf "${NAME}.tar.gz" -C stage "$NAME"
+          shasum -a 256 "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: |
+            ${{ env.ARCHIVE_NAME }}.tar.gz
+            ${{ env.ARCHIVE_NAME }}.tar.gz.sha256
+          if-no-files-found: error
+
+  draft-release:
+    name: Attach to draft release
+    needs: [build, universal-macos]
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.draft_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      # On a tag push TAG is the tag. On a manual run it comes from the input, which may be
+      # empty - in which case it would fall back to the branch name and draft a release
+      # called "main". Stop instead.
+      - name: Validate the tag
+        run: |
+          set -euo pipefail
+          case "$TAG" in
+            v*) echo "Using tag $TAG." ;;
+            *)  echo "::error::'$TAG' is not a v* tag. Pass the 'tag' input when running this workflow manually."
+                exit 1 ;;
+          esac
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: bubbles-ffi-*
+          path: dist
+          merge-multiple: true
+
+      - name: Collect checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          cat ./*.sha256 > SHA256SUMS.txt
+          rm -f ./*.sha256
+          ls -la
+          cat SHA256SUMS.txt
+
+      # Hard gate: this workflow only prepares a release; publishing is manual. If the tag
+      # already has a PUBLISHED release, stop rather than attaching assets to it.
+      - name: Refuse to touch a published release
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "No release exists for $TAG yet; one will be created as a draft."
+            exit 0
+          fi
+          is_draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
+          if [ "$is_draft" != "true" ]; then
+            echo "::error::Release $TAG is already published. Refusing to modify it."
+            exit 1
+          fi
+          echo "Release $TAG exists and is still a draft; assets will be added to it."
+
+      - name: Create or update the draft release
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'EOF'
+          Prebuilt `bubbles-ffi` shared libraries. Each archive contains the library,
+          `bubbles_ffi.h`, the C ABI stability policy (`ABI.md`), and both licences.
+
+          | Platform | Archive |
+          |---|---|
+          | Windows x64 | `*-x86_64-pc-windows-msvc.zip` (DLL + `.dll.lib` import library) |
+          | macOS universal | `*-universal-apple-darwin.tar.gz` (x64 + arm64, for Unity) |
+          | macOS x64 | `*-x86_64-apple-darwin.tar.gz` |
+          | macOS arm64 | `*-aarch64-apple-darwin.tar.gz` |
+          | Linux x64 | `*-x86_64-unknown-linux-gnu.tar.gz` (glibc 2.35+) |
+
+          Verify downloads against `SHA256SUMS.txt`. To get started, see
+          [Native hosts (C ABI)](https://viezevingertjes.github.io/bubbles/integration/native-hosts.html)
+          or the dependency-free `examples/c-host/` in the repository.
+          EOF
+
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --draft --title "$TAG" --notes-file notes.md
+          fi
+
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber dist/*
+
+      - name: Confirm the release is still a draft
+        run: |
+          set -euo pipefail
+          is_draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
+          [ "$is_draft" = "true" ] || { echo "::error::$TAG is not a draft"; exit 1; }
+          echo "Draft release $TAG is ready for review:"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url -q .url

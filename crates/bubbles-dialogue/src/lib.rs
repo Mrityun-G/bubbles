@@ -22,30 +22,41 @@
 //! WebAssembly, or, for hosts not written in Rust, a C caller going through
 //! the `bubbles-ffi` crate.
 //!
-//! **It is deterministic by construction.** Nothing here reads the clock, the
-//! environment, or a global RNG on its own initiative. The nondeterminism you
-//! can have is all opt-in, and all retractable:
+//! **It is deterministic by construction.** Nothing here reads the clock or the
+//! environment, ever. It reaches for randomness on its own initiative exactly
+//! once: an unseeded runner asks the operating system for a starting seed while
+//! it is being built. Pass [`RunnerBuilder::with_seed`] and it reaches for
+//! nothing at all. The rest of the nondeterminism is opt-in and retractable:
 //!
-//! - `rand` is a Cargo feature. Build with `default-features = false` and no
-//!   RNG is compiled in at all. That is also the configuration required to
-//!   target `wasm32-unknown-unknown`, since the default build depends on
-//!   `getrandom`, so on the web the deterministic build is the only build.
-//! - `random`, `random_range` and `dice` are entries in a
-//!   [`FunctionLibrary`]. [`FunctionLibrary::register`] replaces any function
-//!   of the same name, so you can install a seeded generator you control.
+//! - `rand` is a Cargo feature. Build with `default-features = false` and
+//!   `random`, `random_range`, `dice` and `RandomAvailable` are not compiled
+//!   in, and the crate has no entropy source: an unseeded runner starts at the
+//!   beginning of the stream, so that build replays identically whether or not
+//!   you pass a seed, and `with_seed` is how you introduce unpredictability if
+//!   you want it. That is also the configuration required to target
+//!   `wasm32-unknown-unknown`, since the default build depends on `getrandom`,
+//!   so on the web the deterministic build is the only build.
+//! - With `rand` on, [`RunnerBuilder::with_seed`] makes randomness
+//!   reproducible: `random`, `random_range`, `dice` and `RandomAvailable` all
+//!   draw from one [`DialogueRng`] the runner owns, and its position is
+//!   recorded in [`Runner::snapshot`]. The three built-ins are also entries in
+//!   a [`FunctionLibrary`], and [`FunctionLibrary::register`] replaces any
+//!   function of the same name, so you can install your own generator instead.
 //! - Line-group and node-group selection goes through an injected
 //!   [`SaliencyStrategy`]. The default [`FirstAvailable`] is deterministic;
 //!   [`BestLeastRecentlyViewed`] is deterministic given the same call
 //!   sequence; `RandomAvailable` is the opt-in random one.
 //!
-//! Given the same program, the same starting variables, and the same option
-//! selections, you get the same sequence of [`DialogueEvent`]s.
+//! Given the same program, the same starting variables, the same seed, and the
+//! same option selections, you get the same sequence of [`DialogueEvent`]s.
+//! [`RunnerSnapshot`] and [`HashMapStorage`] serialise to identical bytes for
+//! identical state, so saves can be hashed, diffed, or golden-tested.
 //!
 //! **Known edges.** [`Runner::snapshot`] is a node-granularity bookmark, not a
 //! full continuation: [`Runner::restore`] re-enters the recorded node from its
 //! beginning, and neither the `<<detour>>` return stack nor saliency history is
-//! carried across. Enumeration order from [`Runner::all_variables`] is
-//! unspecified for the default [`HashMapStorage`].
+//! carried across. The random stream does survive, so rolls continue rather
+//! than restart.
 //!
 //! # Quick start
 //!
@@ -81,12 +92,13 @@
 //! |--------|----------|
 //! | [`value`] | [`Value`], [`VariableStorage`], [`HashMapStorage`] |
 //! | [`compiler`] | [`compile`], [`compile_many`], [`validate`], [`Program`], [`VariableDecl`] |
-//! | [`runtime`] | [`Runner`], [`RunnerPhase`], [`DialogueEvent`], [`LineMode`], [`LineProvider`], [`line_id_from_tags`], [`line_mode_from_tags`], [`RunnerSnapshot`] |
+//! | [`runtime`] | [`Runner`], [`RunnerPhase`], [`DialogueEvent`], [`LineMode`], [`LineProvider`], [`line_id_from_tags`], [`line_mode_from_tags`], [`RunnerSnapshot`], [`DialogueRng`], [`RngState`] |
 //! | [`library`] | [`FunctionLibrary`] and built-in functions |
 //! | [`saliency`] | [`SaliencyStrategy`], [`FirstAvailable`], [`BestLeastRecentlyViewed`], `RandomAvailable` (`rand` feature) |
 //!
-//! Lint policy is defined once in `Cargo.toml` under `[lints.rust]` /
-//! `[lints.clippy]`; we deliberately do not duplicate it here.
+//! Lint policy is defined once in the workspace root `Cargo.toml` under
+//! `[workspace.lints]` and inherited here via `[lints] workspace = true`; we deliberately do
+//! not duplicate it in this file.
 
 pub mod compiler;
 pub mod error;
@@ -95,16 +107,29 @@ pub mod runtime;
 pub mod saliency;
 pub mod value;
 
+// `#[doc(inline)]` on every root re-export is load-bearing, not cosmetic. The modules above
+// are public, so by default rustdoc documents each item only at its canonical module path and
+// leaves `bubbles/struct.Runner.html` unwritten — every link written in the short form 404s.
+// Inlining makes the root the canonical path, which is also the path callers are told to
+// import (`use bubbles::Runner`). Keep it on anything added here.
+#[doc(inline)]
 pub use compiler::{Program, VariableDecl, compile, compile_many, validate};
+#[doc(inline)]
 pub use error::{DialogueError, Result};
+#[doc(inline)]
 pub use library::FunctionLibrary;
+#[doc(inline)]
 pub use runtime::RunnerSnapshot;
+#[doc(inline)]
 pub use runtime::{
-    DialogueEvent, DialogueOption, HashMapProvider, LineMode, LineProvider, MarkupSpan,
-    PassthroughProvider, Runner, RunnerBuilder, RunnerPhase, line_id_from_tags,
-    line_mode_from_tags, option_group_from_tags,
+    DialogueEvent, DialogueOption, DialogueRng, HashMapProvider, LineMode, LineProvider,
+    MarkupSpan, PassthroughProvider, RngState, Runner, RunnerBuilder, RunnerPhase,
+    line_id_from_tags, line_mode_from_tags, option_group_from_tags,
 };
 #[cfg(feature = "rand")]
+#[doc(inline)]
 pub use saliency::RandomAvailable;
+#[doc(inline)]
 pub use saliency::{BestLeastRecentlyViewed, Candidate, FirstAvailable, SaliencyStrategy};
+#[doc(inline)]
 pub use value::{HashMapStorage, Value, VariableStorage};

@@ -1,27 +1,40 @@
 [package]
-name        = "bubbles-ffi"
+name          = "bubbles-ffi"
 version.workspace = true
-description = "C ABI for bubbles-dialogue (Unity / P/Invoke and other native hosts)."
-readme      = "README.md"
-keywords    = ["dialogue", "ffi", "unity", "game-development", "interop"]
-categories  = ["game-development", "api-bindings"]
+description   = "C ABI for bubbles-dialogue: drive .bub dialogue from a non-Rust host."
+documentation = "https://docs.rs/bubbles-ffi"
+readme        = "README.md"
+keywords      = ["dialogue", "ffi", "c-api", "interop", "game-development"]
+categories    = ["game-development", "api-bindings", "external-ffi-bindings"]
 edition.workspace      = true
 license.workspace      = true
 repository.workspace   = true
 homepage.workspace     = true
 rust-version.workspace = true
-publish                = false
+
+# Published package contents. `include/bubbles_ffi.h` and `ABI.md` are part of the
+# contract, not just repo files: the header is what native hosts compile against and
+# `ABI.md` is rendered into the crate docs via `include_str!`.
+include = [
+    "src/**/*.rs",
+    "include/*.h",
+    "ABI.md",
+    "README.md",
+    "tests/smoke.rs",
+    "tests/header.rs",
+    "tests/contract.rs",
+]
 
 [lib]
 name       = "bubbles_ffi"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-bubbles-dialogue = { path = "../bubbles-dialogue", features = ["full"] }
+bubbles-dialogue = { version = "2.0.0", path = "../bubbles-dialogue", features = ["full"] }
 serde_json         = "1"
 
 [dev-dependencies]
 serde_json = "1"
 
-[lints.rust]
-unsafe_code = "allow"
+[lints]
+workspace = true

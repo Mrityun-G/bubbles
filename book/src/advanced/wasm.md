@@ -18,6 +18,8 @@ bubbles-dialogue = { version = "{{#include ../../../VERSION}}", default-features
 
 The `rand` feature is on by default and works on wasm (via `rand`'s `getrandom` dependency), but you may want to turn it off if you're shipping a tiny build or using a custom RNG.
 
+With `rand` off there is no entropy source in the crate, so an unseeded runner starts its random stream at the beginning rather than somewhere unpredictable. The build is reproducible by default, which is usually what you want on the web. If a session should differ between page loads, take a number from the host - `crypto.getRandomValues`, a server, a save file - and pass it to [`with_seed`](https://docs.rs/bubbles-dialogue/latest/bubbles/struct.RunnerBuilder.html#method.with_seed). Bubbles deliberately does not improvise one for you: `SystemTime` aborts the module on `wasm32-unknown-unknown`, and `std`'s hash key is a compile-time constant there, so anything the crate could reach for on its own would be either a crash or a fixed number dressed up as entropy.
+
 ## Building a wasm library
 
 ```sh
@@ -137,4 +139,4 @@ On a stripped, optimised build, a Bubbles runtime plus a small `.bub` script ten
 
 ---
 
-> **Next:** [TUI Runner](../examples/tui-runner.md)
+> **Next:** [The Harbour](../examples/harbour.md)

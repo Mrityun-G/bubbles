@@ -68,31 +68,29 @@ runner.set_provider(JsonProvider::load("locales/es.json")?);
 
 Swap the provider whenever the player changes language. The dialogue continues; the next tagged line comes back in the new tongue.
 
-## Plural and gendered forms
+## Plural forms and grammatical gender
 
-Translation isn't just replacing words. Bubbles has two built-in functions that help:
+Translation isn't just replacing words, and this is where you should not reach for the built-ins. `plural` and `select` are text-shaping helpers documented under [Expressions](../language/expressions.md); neither localises anything. `plural` applies one two-form rule - singular when `|n|` is 1, plural otherwise - which is wrong for Polish, Russian, Czech and Arabic, each of which has between three and six plural categories, and wrong for French, which takes the singular for 0. `select` is a keyed lookup whose `|` and `:` separators cannot be escaped.
 
-- **`plural(n, singular, plural)`** - picks the singular form when `|n| == 1`, the plural form otherwise.
-- **`select(key, "k1:text|k2:text|other:fallback")`** - picks by key, with an `other:` fallback.
+The answer is a function you register. A template returned by the provider is parsed and evaluated at the moment the line is produced, so every function name in it resolves against the runner's `FunctionLibrary` then - and registering a name replaces the built-in:
 
-```text
-# English source
-You found {$n} {plural($n, "gem", "gems")}.
-
-# Spanish template (in the provider)
-Encontraste {$n} {plural($n, "gema", "gemas")}.
-
-# German template
-Du hast {$n} {plural($n, "Edelstein", "Edelsteine")} gefunden.
+```rust,ignore
+// Replaces the built-in for every template that calls plural(...).
+runner.library_mut().register("plural", move |args| {
+    plural_for_locale(&locale, &args) // e.g. French: the singular form for 0
+});
 ```
 
-Gendered pronouns:
+That buys you a correct choice between the two forms the call site passes, which is enough for French. It is not enough for a language with three to six categories, because three arguments only carry two forms. Give those their own function and let the translator call it:
 
 ```text
-{select($gender, "m:He|f:She|n:They|other:They")} arrived at the tavern.
+# Russian template, using a four-argument function the host registered
+Ты нашёл {$n} {plural_ru($n, "камень", "камня", "камней")}.
 ```
 
-Translators can reshape these expressions for their language - some languages have more than two plural forms, or different gender structures. Because the expression is evaluated *inside* the template, they have full control.
+Grammatical gender is the same shape of problem - agreement that depends on a value - and takes the same answer: a function that knows your game's gender model, rather than a `select` mapping copied into every template that needs it.
+
+Whatever name a template calls has to be registered before that line runs. An unknown function is not a compile error - the script compiles, and the call fails with `DialogueError::Function` when the line is reached - so exercise each locale's templates at least once. See [Custom Functions](./functions.md) for the registration API.
 
 ## Markup in translated strings
 

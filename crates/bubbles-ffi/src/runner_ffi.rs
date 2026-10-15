@@ -11,6 +11,9 @@ use crate::{BUBBLES_DONE, BUBBLES_ERR, BUBBLES_OK};
 
 /// Creates a runner. **Consumes** `program`; do not free the program handle afterward.
 ///
+/// Randomness is seeded from the operating system; use
+/// [`bubbles_runner_new_seeded`](crate::bubbles_runner_new_seeded) for a reproducible session.
+///
 /// # Safety
 ///
 /// `program` must be a live handle from compile. `out_runner` must be non-null.
@@ -19,7 +22,7 @@ pub unsafe extern "C" fn bubbles_runner_new(
     program: *mut c_void,
     out_runner: *mut *mut c_void,
 ) -> c_int {
-    unsafe { build_runner(program, BUBBLES_SALIENCY_FIRST_AVAILABLE, out_runner) }
+    unsafe { build_runner(program, BUBBLES_SALIENCY_FIRST_AVAILABLE, None, out_runner) }
 }
 
 /// Drops a runner.
@@ -58,9 +61,11 @@ pub unsafe extern "C" fn bubbles_runner_start(
     }
 }
 
-/// Advances the runner. On [`BUBBLES_OK`], `*out_event_json` is a newly allocated NUL-terminated
-/// UTF-8 JSON string (free with [`crate::bubbles_string_free`]). On [`BUBBLES_DONE`], dialogue has ended
-/// and `*out_event_json` is set to null. On [`BUBBLES_ERR`], see [`crate::bubbles_last_error`].
+/// Advances the runner.
+///
+/// On [`BUBBLES_OK`], `*out_event_json` is a newly allocated NUL-terminated UTF-8 JSON string
+/// (free with [`crate::bubbles_string_free`]). On [`BUBBLES_DONE`], dialogue has ended and
+/// `*out_event_json` is set to null. On [`BUBBLES_ERR`], see [`crate::bubbles_last_error`].
 ///
 /// # Safety
 ///

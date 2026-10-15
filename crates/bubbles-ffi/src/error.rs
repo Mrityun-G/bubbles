@@ -8,7 +8,7 @@ thread_local! {
     static LAST_ERR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
-pub(crate) fn set_err(msg: impl Into<String>) {
+pub fn set_err(msg: impl Into<String>) {
     LAST_ERR.with(|c| {
         let msg = msg.into();
         let cs = CString::new(msg)
@@ -17,7 +17,7 @@ pub(crate) fn set_err(msg: impl Into<String>) {
     });
 }
 
-pub(crate) fn clear_err() {
+pub fn clear_err() {
     LAST_ERR.with(|c| *c.borrow_mut() = None);
 }
 

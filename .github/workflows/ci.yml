@@ -32,6 +32,21 @@ jobs:
       - name: Test (no default features, bubbles-dialogue)
         run: cargo test -p bubbles-dialogue --no-default-features
 
+      # `serde` without `rand` is its own code path: snapshots carry the random
+      # stream whether or not the random built-ins are compiled in, so the
+      # stream has to serialise and restore with no `rand` in the tree. Neither
+      # of the two steps above builds that combination.
+      - name: Test (serde without rand, bubbles-dialogue)
+        run: cargo test -p bubbles-dialogue --no-default-features --features serde
+
+      # `bubbles check` is the verb meant to live in other people's CI, and the reason it
+      # is worth adding there is that `--no-default-features` drops the terminal UI. Build
+      # and test that configuration so the checker cannot start depending on the player.
+      - name: Clippy and test (no default features, bubbles-cli)
+        run: |
+          cargo clippy -p bubbles-cli --no-default-features --all-targets -- -D warnings
+          cargo test -p bubbles-cli --no-default-features
+
       - name: WebAssembly (library)
         run: bash scripts/check-wasm.sh
 
@@ -41,6 +56,58 @@ jobs:
       - name: File-size check
         run: bash scripts/check-file-sizes.sh
 
+      # bubbles-ffi is publishable, so keep it that way: this catches missing metadata, a
+      # path dependency without a version, or a `include` list that does not package.
+      #
+      # `--no-verify` is required, not a shortcut. The verify step builds the packaged
+      # tarball against the *registry* copy of bubbles-dialogue, because publishing strips
+      # the `path` from a path+version dependency. The two crates are released together
+      # (RELEASING.md publishes bubbles-dialogue first), so between releases this crate
+      # legitimately calls bubbles-dialogue API that is not on crates.io yet, and the verify
+      # build cannot succeed no matter how the versions are arranged. The full dry-run,
+      # verification included, is a release step: it runs once bubbles-dialogue is published
+      # and the dependency is actually resolvable.
+      - name: Publish dry-run (bubbles-ffi)
+        run: cargo publish --dry-run -p bubbles-ffi --no-verify
+
+      # Same reasoning for the CLI: it is published, so catch missing metadata or a path
+      # dependency without a version here rather than at release time.
+      - name: Publish dry-run (bubbles-cli)
+        run: cargo publish --dry-run -p bubbles-cli
+
+      # The headline verb has to work on the examples the guide tells people to run, and
+      # it has to fail when it should: `harbour.bub` alone jumps into `services.bub`, so
+      # checking it on its own must exit non-zero.
+      - name: Smoke-test `bubbles check`
+        run: |
+          cargo build -q -p bubbles-cli --no-default-features
+          BUBBLES=target/debug/bubbles
+          "$BUBBLES" check examples/harbour/harbour.bub examples/harbour/services.bub
+          if "$BUBBLES" check --quiet examples/harbour/harbour.bub; then
+            echo "::error::check exited 0 on an unresolved cross-file jump"
+            exit 1
+          fi
+
+      - name: Build bubbles-ffi cdylib (release)
+        run: cargo build -p bubbles-ffi --release
+
+      # The header is the contract native hosts compile against; this asserts the built
+      # library exports exactly what the header declares.
+      - name: FFI ABI check (header vs exported symbols)
+        run: bash scripts/check-ffi-abi.sh
+
+      # Proves the C ABI is usable from outside Rust, with no toolchain but a C compiler.
+      # Asserting on output rather than just the exit code means a silently broken event
+      # loop fails here too.
+      - name: C host example (build and run)
+        working-directory: examples/c-host
+        run: |
+          make NO_CARGO=1
+          ./c-host tavern.bub Tavern < /dev/null | tee out.txt
+          grep -Fq 'Innkeeper: Evening. You look like you walked a long road.' out.txt
+          grep -Fq '3) Nothing, sorry.  (unavailable)' out.txt
+          grep -Fq 'Innkeeper: Sleep well. You have 6 gold left.' out.txt
+
       - name: Setup .NET SDK (bubbles-ffi smoke)
         uses: actions/setup-dotnet@v6
         with:
@@ -48,7 +115,6 @@ jobs:
 
       - name: bubbles-ffi P/Invoke smoke (.NET)
         run: |
-          cargo build -p bubbles-ffi --release
           cd crates/bubbles-ffi/tests/dotnet_smoke
           LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/target/release" dotnet run -c Release
 
