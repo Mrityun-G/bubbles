@@ -1,6 +1,6 @@
 # bubbles
 
-**Branching dialogue for Rust games. Write scripts, compile once, drive from any game loop.**
+**An embeddable, deterministic dialogue runtime for Rust. Scripted conversation as a state machine you drive, not a narrative authoring suite.**
 
 [![Crates.io](https://img.shields.io/crates/v/bubbles-dialogue.svg)](https://crates.io/crates/bubbles-dialogue)
 [![docs.rs](https://docs.rs/bubbles-dialogue/badge.svg)](https://docs.rs/bubbles-dialogue)
@@ -9,36 +9,29 @@
 [![MSRV: 1.94](https://img.shields.io/badge/rustc-1.94%2B-orange.svg)](https://blog.rust-lang.org/2026/03/27/Rust-1.94.0/)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 
-No async. No global state. No engine lock-in. Pull events when your game is ready, pick an option, continue. That's the whole API.
+Bubbles is a Rust library you call, not a framework that calls you. A `.bub` script compiles to a plain Rust struct, and the runtime gives you one method: ask for the next event. There is no async, no global state, and nothing to load at runtime, so it drops into a loop you already own - a Bevy system, a Godot-rust node, a Macroquad or Fyrox frame, a plain `while let` in a console application, or a browser animation frame under WebAssembly.
 
-Works with Bevy, Godot-rust, Macroquad, or any custom engine. Unity and other native hosts can use [`bubbles-ffi`](crates/bubbles-ffi/) - a C ABI wrapper with JSON events for P/Invoke.
+If you are building education software, a training simulation, an onboarding flow, a kiosk, or a museum exhibit, that shape is probably why you are here. You need scripted conversation that behaves the same way every time, and you are not going to install a game engine to get it.
+
+It works well for games too, and for the same reason: if your engine needs replay, lockstep, or server-authoritative dialogue, a runtime with no hidden clock and no ambient randomness is much easier to trust.
 
 ---
 
-## What a script looks like
+## Why you would choose this
 
-```text
-title: Start
-tags: scene docks outdoor
----
-<<declare $gold = 25>>
+**It embeds without inverting your control flow.** The runtime is pull-based. You call `next_event()` when your application is ready for the next thing to happen, and nothing happens in between. There are no `async` functions in the library, no background tasks, no callbacks you must register, and no global or thread-local state, so a `Runner` is just a value you own and you can hold as many as you like. Bubbles never asks for your main loop.
 
-=> Dockworker: Oi, watch yer step!
-=> Dockworker: These crates won't unload themselves, ye know.
-=> Dockworker: Smells like low tide and regret out here.
+**It is deterministic by construction.** Nothing in the runtime reads the clock, the environment, or a global RNG on its own initiative. The only nondeterminism is what you opt into, and you can take all of it back:
 
-Stumpy: Name's McGee. Stumpy McGee, Harbormaster.
-Stumpy: Ye can't sail from Barnacle Bay without a travel permit.
+- `rand` is a feature. Build with `default-features = false` and the RNG is not compiled in at all.
+- `random`, `random_range`, and `dice` are ordinary entries in a function registry. Registering your own under the same name replaces the built-in, so you can supply a seeded generator you control.
+- Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `RandomAvailable` is the opt-in random one.
 
-<<jump Options>>
-===
-```
+Given the same script, the same starting variables, and the same option choices, you get the same sequence of events.
 
-The harbour demo continues in `examples/harbour/` with an `Options` node (guarded choices, `<<detour MapSeller>>`, `<<jump Depart>>`). Run it with:
+**It is small and auditable.** Three required dependencies: `indexmap`, `logos`, `thiserror`. `unsafe_code = "deny"` across the workspace. No bytecode, no binary format, no asset pipeline. `compile()` returns a struct, so there is nothing to version, load, or ship alongside your binary. CI keeps the library building for `wasm32-unknown-unknown` (with `default-features = false`, see below) and enforces a 300-non-blank-line cap per source file, which is mostly a way of keeping the code readable by someone who did not write it.
 
-```bash
-cargo run -p bubbles-tui -- examples/harbour/harbour.bub examples/harbour/services.bub
-```
+**Where the edges are.** `snapshot()` / `restore()` records the active node, visit counts, and which `<<once>>` blocks have fired, which is enough for save-and-resume at node granularity. It deliberately does not serialise the in-progress statement list, so `restore()` re-enters the snapshotted node from its beginning, and neither the `<<detour>>` return stack nor saliency history carries across. It is a bookmark, not a time-travel debugger. Enumeration order from `all_variables` is also unspecified for the default `HashMapStorage`. See [Save and Load](https://viezevingertjes.github.io/bubbles/advanced/save-load.html) for what round-trips and what does not.
 
 ---
 
@@ -87,9 +80,68 @@ fn main() -> Result<(), bubbles::DialogueError> {
 }
 ```
 
+That loop is the whole integration surface. Replace the `println!`s with your renderer and `select_option(0)` with your input handling, and you are done.
+
 ---
 
-## Features
+## What a script looks like
+
+```text
+title: Start
+tags: scene docks outdoor
+---
+<<declare $gold = 25>>
+
+=> Dockworker: Oi, watch yer step!
+=> Dockworker: These crates won't unload themselves, ye know.
+=> Dockworker: Smells like low tide and regret out here.
+
+Stumpy: Name's McGee. Stumpy McGee, Harbormaster.
+Stumpy: Ye can't sail from Barnacle Bay without a travel permit.
+
+<<jump Options>>
+===
+```
+
+The harbour demo continues in `examples/harbour/` with an `Options` node (guarded choices, `<<detour MapSeller>>`, `<<jump Depart>>`). Run it with:
+
+```bash
+cargo run -p bubbles-tui -- examples/harbour/harbour.bub examples/harbour/services.bub
+```
+
+---
+
+## Prior art
+
+[Yarn Spinner](https://yarnspinner.dev) and [Ink](https://github.com/inkle/ink) are the established tools in this space, and they are good at a job Bubbles is not trying to do.
+
+They sell **narrative authoring suites to writers**, and the tooling is the product: editor extensions, graph views, live preview, engine plugins for Unity and Unreal, established localisation workflows, years of shipped titles, and communities large enough that your question has probably already been answered. Both are more mature than Bubbles and both have far richer writer-facing features. If a writer who does not use Rust needs to author and preview dialogue themselves, pick one of those; that is genuinely the better choice.
+
+Bubbles is a **runtime for the program that embeds it**. The audience is the engineer wiring dialogue into an application, and the design follows from that: no engine assumption, no authoring tool to install, no bytecode or binary format in the middle, a pull-based API that does not want your main loop, and determinism you can turn all the way on. The two markets that care most about those properties are non-game interactive software (education, training, simulation, onboarding, kiosks, exhibits) and deterministic game systems such as replay, lockstep, and server-authoritative dialogue.
+
+Put shortly: they optimise for the person writing the dialogue, we optimise for the program running it.
+
+---
+
+## Reference case: SiliSim
+
+[SiliSim](https://silisim.com/) is a browser-based logic-gate course and silicon simulator. It is **our own project, not third-party adoption**. We describe it here because it is the clearest illustration of the problem shape Bubbles is built for, and because it is why the library looks the way it does.
+
+SiliSim is not a game. It is a course: a lesson introduces a concept, the learner wires up a circuit, and the lesson reacts to what they built. That needs speaker lines, hints, and branching tutorial copy conditioned on simulation state, which is a dialogue problem, but it does not need a game engine, and it has to run in a browser tab.
+
+That ruled out the alternatives on integration grounds rather than feature grounds:
+
+- **It is already a WASM binary with its own event loop.** The circuit builder owns the frame loop. A dialogue runtime that wanted to own it, or that assumed an async runtime underneath, would have been the wrong shape. Pull-based `next_event()` calls drop into the existing loop directly.
+- **There is no engine and no asset pipeline to hang things off.** Because `compile()` returns a plain struct, lesson scripts are just data the page already has: no bytecode to load, no binary format to serve.
+- **Lessons must behave identically for every learner.** A hint that fires for one student and not another is a bug report nobody can reproduce. Determinism is a correctness requirement here, not a nice-to-have.
+
+Someone else's event loop, no engine, reproducible behaviour: the same three constraints describe most of the training and simulation software we have looked at.
+
+---
+
+## Language reference
+
+Bubbles is a small language. The table below is a reference for what the script format supports, not an argument for choosing the library; the reasons to choose it are above.
 
 | Feature | Description |
 |---|---|
@@ -105,7 +157,7 @@ fn main() -> Result<(), bubbles::DialogueError> {
 | Saliency | `FirstAvailable`, `RandomAvailable`, `BestLeastRecentlyViewed`, or your own |
 | Host commands | `<<play_sound bell>>` surfaces as `DialogueEvent::Command` |
 | Built-in functions | `visited`, `visited_count`, `random`, `random_range`, `dice`, `round`, `floor`, `ceil`, `min`, `max`, `abs`, `clamp`, `string`, `int`, `plural`, `select` |
-| Custom functions | Register closures callable from any expression |
+| Custom functions | Register closures callable from any expression; registering a built-in's name replaces it |
 | Localisation | `LineProvider` for `#line:id` lookup; translated templates can contain `{expr}` and `[markup]` |
 | Multi-file | `compile_many(&[(name, src)])` with duplicate-title detection and cross-file jump validation |
 | Bookmarks / save | `Runner::snapshot` / `Runner::restore` with `RunnerSnapshot` (always available); enable `serde` to persist snapshot and `HashMapStorage` to disk |
@@ -123,25 +175,25 @@ fn main() -> Result<(), bubbles::DialogueError> {
 | `serde` | off | `Serialize` / `Deserialize` on `Value`, `HashMapStorage`, `RunnerSnapshot` |
 | `full` | off | Both of the above |
 
----
+Two things worth knowing about `rand`:
 
-## Prior art
+- In the default build, `random()`, `random_range()`, `dice()`, and `RandomAvailable` draw from the operating-system-seeded thread RNG, and there is no seeding API. If you need *reproducible* randomness rather than none, register your own seeded functions instead of relying on the built-ins.
+- **For `wasm32-unknown-unknown` you need `default-features = false`.** The default build pulls in `getrandom`, which does not support that target unless you opt into a JavaScript backend. This is why the CI WebAssembly job builds the no-default-features configurations, and it means the browser-friendly build and the deterministic build are the same build.
 
-Bubbles sits in the same space as [Yarn Spinner](https://yarnspinner.dev) and [Ink](https://github.com/inkle/ink). The difference is integration model: Bubbles compiles to a plain Rust struct and runs wherever your binary runs - no binary format, no external runtime, no Unity package. If you want something that drops into a Bevy, Godot-rust, or Macroquad project in an afternoon, that's what this is for.
+```toml
+# Browser / deterministic configuration.
+bubbles-dialogue = { version = "2.0.0", default-features = false, features = ["serde"] }
+```
 
 ---
 
 ## Learn more
 
-The full guide - language reference, integration walkthrough, localisation, save/load, WebAssembly, and annotated examples - lives at **<https://viezevingertjes.github.io/bubbles/>**.
+The full guide - language reference, integration walkthrough, localisation, save/load, WebAssembly, and annotated examples - lives at **<https://viezevingertjes.github.io/bubbles/>**. Start with [Embedding and Determinism](https://viezevingertjes.github.io/bubbles/why.html) if you are deciding whether this library fits.
 
 Release history, including the breaking changes in 1.0.0 and 2.0.0, is in [CHANGELOG.md](CHANGELOG.md).
 
----
-
-## Projects using Bubbles
-
-- **[SiliSim](https://silisim.com/)** — browser-first logic-gate course and silicon simulator. Lesson dialogue (speaker lines, hints, branching tutorial copy) is driven by `.bub` scripts loaded at runtime in WebAssembly, in the same event loop as the circuit builder.
+Rust hosts use the library directly, whether that is Bevy, Godot-rust, Macroquad, Fyrox, or a binary with a loop of its own. For hosts that are not written in Rust, [`bubbles-ffi`](crates/bubbles-ffi/) is a maintained C ABI wrapper that surfaces the same events as JSON.
 
 ---
 
@@ -157,13 +209,13 @@ cargo test --all-features
 
 Good places to start:
 
-- Issues labelled [`good first issue`](https://github.com/ViezeVingertjes/bubbles/labels/good%20first%20issue) — scoped to an evening, with the file to edit named in the issue
-- A confusing passage in the [guide](https://viezevingertjes.github.io/bubbles/) — the source is in `book/src/`, and a wording fix needs no tests
-- A bug you hit — a minimal `.bub` reproduction is the most useful report there is
+- Issues labelled [`good first issue`](https://github.com/ViezeVingertjes/bubbles/labels/good%20first%20issue), which are scoped to an evening and name the file to edit
+- A confusing passage in the [guide](https://viezevingertjes.github.io/bubbles/). The source is in `book/src/`, and a wording fix needs no tests
+- A bug you hit. A minimal `.bub` reproduction is the most useful report there is
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the quality gates, and how much
 process applies to which kind of change (a typo fix needs very little). Commits
-need a [DCO](DCO) sign-off — `git commit -s` adds it.
+need a [DCO](DCO) sign-off, which `git commit -s` adds.
 
 Changes land on `main` through pull requests, with CI and MSRV checks required.
 Draft PRs are welcome if you want feedback before a change is finished.

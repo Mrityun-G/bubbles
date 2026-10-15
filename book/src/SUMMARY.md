@@ -1,6 +1,7 @@
 # Summary
 
 [Introduction](./introduction.md)
+[Embedding and Determinism](./why.md)
 
 # Getting Started
 
