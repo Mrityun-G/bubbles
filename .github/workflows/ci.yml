@@ -32,6 +32,13 @@ jobs:
       - name: Test (no default features, bubbles-dialogue)
         run: cargo test -p bubbles-dialogue --no-default-features
 
+      # `serde` without `rand` is its own code path: snapshots carry the random
+      # stream whether or not the random built-ins are compiled in, so the
+      # stream has to serialise and restore with no `rand` in the tree. Neither
+      # of the two steps above builds that combination.
+      - name: Test (serde without rand, bubbles-dialogue)
+        run: cargo test -p bubbles-dialogue --no-default-features --features serde
+
       - name: WebAssembly (library)
         run: bash scripts/check-wasm.sh
 
@@ -41,6 +48,32 @@ jobs:
       - name: File-size check
         run: bash scripts/check-file-sizes.sh
 
+      # bubbles-ffi is publishable, so keep it that way: this catches missing metadata, a
+      # file left out of `include`, or a path dependency without a version long before a
+      # release is cut.
+      - name: Publish dry-run (bubbles-ffi)
+        run: cargo publish --dry-run -p bubbles-ffi
+
+      - name: Build bubbles-ffi cdylib (release)
+        run: cargo build -p bubbles-ffi --release
+
+      # The header is the contract native hosts compile against; this asserts the built
+      # library exports exactly what the header declares.
+      - name: FFI ABI check (header vs exported symbols)
+        run: bash scripts/check-ffi-abi.sh
+
+      # Proves the C ABI is usable from outside Rust, with no toolchain but a C compiler.
+      # Asserting on output rather than just the exit code means a silently broken event
+      # loop fails here too.
+      - name: C host example (build and run)
+        working-directory: examples/c-host
+        run: |
+          make NO_CARGO=1
+          ./c-host tavern.bub Tavern < /dev/null | tee out.txt
+          grep -Fq 'Innkeeper: Evening. You look like you walked a long road.' out.txt
+          grep -Fq '3) Nothing, sorry.  (unavailable)' out.txt
+          grep -Fq 'Innkeeper: Sleep well. You have 6 gold left.' out.txt
+
       - name: Setup .NET SDK (bubbles-ffi smoke)
         uses: actions/setup-dotnet@v6
         with:
@@ -48,7 +81,6 @@ jobs:
 
       - name: bubbles-ffi P/Invoke smoke (.NET)
         run: |
-          cargo build -p bubbles-ffi --release
           cd crates/bubbles-ffi/tests/dotnet_smoke
           LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/target/release" dotnet run -c Release
 

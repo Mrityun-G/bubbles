@@ -26,4 +26,8 @@ enable = true
 limit-results = 30
 use-boolean-and = true
 
+# The C ABI chapter used to be named after Unity; keep the published URL working.
+[output.html.redirect]
+"/integration/unity-and-native.html" = "native-hosts.html"
+
 [preprocessor.links]

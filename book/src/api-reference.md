@@ -18,11 +18,12 @@ A quick index of what you'll look up most often:
 | Store variables | [`VariableStorage`](./api/bubbles/trait.VariableStorage.html), [`HashMapStorage`](./api/bubbles/struct.HashMapStorage.html) |
 | Localise lines | [`LineProvider`](./api/bubbles/trait.LineProvider.html), [`HashMapProvider`](./api/bubbles/struct.HashMapProvider.html) |
 | Register host functions | [`FunctionLibrary`](./api/bubbles/struct.FunctionLibrary.html) |
-| Pick variants | [`SaliencyStrategy`](./api/bubbles/trait.SaliencyStrategy.html), [`FirstAvailable`](./api/bubbles/struct.FirstAvailable.html), [`BestLeastRecentlyViewed`](./api/bubbles/struct.BestLeastRecentlyViewed.html) |
+| Pick variants | [`SaliencyStrategy`](./api/bubbles/trait.SaliencyStrategy.html), [`FirstAvailable`](./api/bubbles/struct.FirstAvailable.html), [`BestLeastRecentlyViewed`](./api/bubbles/struct.BestLeastRecentlyViewed.html), [`RandomAvailable`](./api/bubbles/saliency/struct.RandomAvailable.html) (`rand` only) |
+| Reproduce a session | [`RunnerBuilder::with_seed`](./api/bubbles/struct.RunnerBuilder.html#method.with_seed), [`DialogueRng`](./api/bubbles/struct.DialogueRng.html), [`RngState`](./api/bubbles/struct.RngState.html) |
 | Inline markup spans | [`MarkupSpan`](./api/bubbles/struct.MarkupSpan.html) |
 | Save / load | [`RunnerSnapshot`](./api/bubbles/struct.RunnerSnapshot.html), [`Runner::snapshot`](./api/bubbles/struct.Runner.html#method.snapshot) / [`restore`](./api/bubbles/struct.Runner.html#method.restore) (`serde` only for `Serialize`/`Deserialize` on the snapshot) |
 | Handle errors | [`DialogueError`](./api/bubbles/enum.DialogueError.html) |
-| Unity / C# / C shared library | Not on docs.rs: see the [guide chapter](./integration/unity-and-native.md) and the [C header](https://github.com/ViezeVingertjes/bubbles/blob/main/crates/bubbles-ffi/include/bubbles_ffi.h) |
+| Drive from a non-Rust host | Not on docs.rs: see [Native hosts (C ABI)](./integration/native-hosts.md) and the [C header](https://github.com/ViezeVingertjes/bubbles/blob/main/crates/bubbles-ffi/include/bubbles_ffi.h) |
 
 ## Feature flags
 

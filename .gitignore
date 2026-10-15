@@ -4,6 +4,11 @@ Cargo.lock
 /book/book/
 /site/
 
+# Compiled C host example (examples/c-host/Makefile)
+/examples/c-host/c-host
+/examples/c-host/c-host.exe
+/examples/c-host/out.txt
+
 # .NET (dotnet build / Visual Studio / Rider)
 **/bin/
 **/obj/

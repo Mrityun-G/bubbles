@@ -19,14 +19,132 @@ are not published to crates.io.
 
 ## [Unreleased]
 
+### ⚠ Breaking changes
+
+- **`RunnerSnapshot` and `HashMapStorage` now use ordered collections.**
+  `RunnerSnapshot::visits` is a `BTreeMap<String, u32>`, `RunnerSnapshot::once_seen`
+  is a `BTreeSet<String>`, and `HashMapStorage` holds a `BTreeMap` internally.
+
+  Nothing was ever corrupted by the old types — restore was correct and
+  `PartialEq` compares by value — but `std`'s hashing is seeded per process, so
+  serialising the same state produced different bytes on every run, and
+  `Runner::all_variables` returned its pairs in that same shifting order despite
+  being documented for save editors and tests. Any workflow that treats a save
+  as bytes (content-hashing, diffing two saves, golden-file tests,
+  deduplication) could not work. Ordered collections make the bytes canonical:
+  the same state always serialises identically, regardless of how it was reached.
+
+  *Upgrading:* if you construct a `RunnerSnapshot` by hand, swap `HashMap` /
+  `HashSet` for `BTreeMap` / `BTreeSet`; the entries are unchanged. If you read
+  `snapshot.visits` or `snapshot.once_seen`, the API you need (`get`,
+  `contains`, `iter`, `len`) is the same, and iteration is now sorted. Existing
+  serialised saves load unchanged — JSON objects and arrays deserialise into
+  either collection. Code that sorted the output of `all_variables` before
+  comparing it can stop. `HashMapStorage` keeps its name: it is the default
+  store, and renaming it would be a second break for no gain.
+
+- **`RunnerSnapshot` has a new `rng` field**, carrying the position of the
+  runner's random stream so a restored save continues it rather than diverging.
+
+  *Upgrading:* struct literals need the extra field. Use
+  `runner.rng().state()` to capture a live runner's position, or
+  `RngState::default()` for a fixed starting stream. Snapshots written by 2.x
+  deserialise without it and fall back to whatever an unseeded runner would
+  have started from — a fresh OS-seeded stream with `rand`, the beginning of
+  the stream without it — which is exactly what those saves did before.
+
+- **`SaliencyStrategy::select` takes the runner's generator:**
+  `fn select(&mut self, candidates: &[Candidate<'_>], rng: &DialogueRng) -> Option<usize>`.
+
+  A strategy that chooses randomly has to draw from the runner's stream, or a
+  seeded session is not reproducible. Passing the generator makes that
+  structural rather than something a strategy can forget.
+
+  *Upgrading:* add the parameter. Deterministic strategies ignore it and can
+  name it `_rng`. Strategies that called `rand::rng()` should call
+  `rng.choose_index(len)` instead. The built-in strategies are unchanged at the
+  use site: `set_saliency(RandomAvailable)` still works as written.
+
 ### Added
 
+- **`RunnerBuilder::with_seed(u64)` — seeded, reproducible dialogue.** Given the
+  same program, the same starting variables, the same seed, and the same
+  sequence of option selections, a runner produces the same sequence of events,
+  in every process and on every platform, including every `random()`,
+  `random_range()`, `dice()` and `RandomAvailable` choice. Previously those four
+  reached for the OS-seeded thread-local RNG with no way to influence them, so
+  replay, lockstep, and server-authoritative dialogue were out of reach for any
+  script that rolled dice. Runners built without a seed behave as before and
+  draw from the operating system — except with `default-features = false`,
+  where there is no entropy source in the crate at all and an unseeded runner
+  starts at the beginning of the stream, so that build replays identically
+  whether or not you pass a seed. That is the `wasm32-unknown-unknown`
+  configuration, so in a browser `with_seed` is the only way to make a session
+  unpredictable. The crate deliberately does not improvise a seed there:
+  `SystemTime` aborts the module on that target, and `std`'s hash key is a
+  compile-time constant on it, so the two obvious substitutes are a crash and
+  a fixed number dressed up as entropy.
+- `DialogueRng` and `RngState`: the generator a runner draws from, and the
+  stream position stored in a snapshot. `Runner::rng()` hands out a handle, so
+  host functions registered through `library_mut()` can draw from the same
+  stream and stay part of the replay. The generator is `SplitMix64`, implemented
+  in this crate rather than taken from a dependency, because the stream is part
+  of the save format and has to be identical on every target and in every build
+  — `rand`'s own `SmallRng` is explicitly not reproducible across platforms or
+  versions.
 - `CHANGELOG.md` (this file), backfilled across all 12 published releases.
 - Developer Certificate of Origin (DCO) sign-off requirement for contributions,
   documented in [CONTRIBUTING.md](CONTRIBUTING.md) and enforced by a PR check.
+- A versioned C header for `bubbles-ffi` at `crates/bubbles-ffi/include/bubbles_ffi.h`,
+  carrying `BUBBLES_ABI_VERSION` alongside the library version, with every
+  declaration documented. A test and `scripts/check-ffi-abi.sh` keep it from
+  drifting from the built library.
+- `crates/bubbles-ffi/ABI.md`, the C ABI stability policy: linkage, integer
+  widths, status codes, struct layout, the event JSON schema, who frees what,
+  threading rules, and an explicit list of what not to rely on.
+- Prebuilt `bubbles-ffi` shared libraries for Windows x64, macOS x64, macOS
+  arm64, macOS universal, and Linux x64, built by a workflow that attaches them
+  to a release draft. Each archive carries the library, the header, `ABI.md`,
+  and both licences, so a host needs no Rust toolchain.
+- `examples/c-host/`, a dependency-free C99 host that loads a `.bub` file, pumps
+  the event loop, and selects an option. CI builds and runs it.
+- The WebAssembly gate in CI now instantiates a module and plays a script
+  through it, instead of only compiling the library for the target. A call that
+  diverges on `wasm32-unknown-unknown` compiles cleanly, and the optimiser is
+  then free to delete everything downstream of it — so the build goes green,
+  the artifact gets *smaller*, and the module traps on the first line of
+  dialogue. Compiling could not see that; running can.
+- `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
+  and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
+
+### Changed
+
+- The `plural` and `select` built-ins are no longer documented as
+  internationalisation. `plural` is described as the two-form rule it actually
+  implements - the singular form when `|n|` is 1, the plural form otherwise -
+  and as incorrect for languages with other plural categories, with
+  `FunctionLibrary::register` named as the way to install a correct rule.
+  `select` now records that its `|` and `:` separators cannot be escaped. The
+  guide moves both out of the Localisation chapter into Expressions; the
+  `LineProvider` seam that does localise is unchanged. Behaviour, the public
+  API, and the `.bub` language are untouched.
 
 ### Fixed
 
+- The guide described the `NodeStarted` and `NodeComplete` FFI events as
+  carrying a `"title"` field; the runtime emits `"node"`. The header also
+  claimed `bubbles_runner_set_locale_json` merges into the existing locale
+  table, when it replaces it. Both would have misled a host author.
+- The guide's API index listed only two of the three shipped saliency
+  strategies; `RandomAvailable` is now linked alongside them.
+- Deep links into the rustdoc pointed at pages that were never generated.
+  Items re-exported at the crate root from public modules are documented only
+  at their module path by default, so `bubbles/struct.Runner.html` did not
+  exist and all 55 links written in that short form — across the guide, the
+  README and the crate docs — returned 404, including 17 of the 18 on the
+  guide's API index. The root re-exports now carry `#[doc(inline)]`, which
+  makes `bubbles::Runner` the canonical path callers are already told to
+  import. No links were rewritten.
 - `LICENSE-APACHE` now contains the full Apache License 2.0 text. It previously
   held only the short "how to apply the license" boilerplate notice, so the
   repository referenced Apache-2.0 without shipping its terms, and GitHub's

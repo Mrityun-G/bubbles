@@ -15,23 +15,25 @@ If you are building education software, a training simulation, an onboarding flo
 
 It works well for games too, and for the same reason: if your engine needs replay, lockstep, or server-authoritative dialogue, a runtime with no hidden clock and no ambient randomness is much easier to trust.
 
+A host that cannot link Rust goes through [`bubbles-ffi`](crates/bubbles-ffi/), a C ABI with [prebuilt binaries](https://github.com/ViezeVingertjes/bubbles/releases) for Windows, macOS, and Linux.
+
 ---
 
 ## Why you would choose this
 
 **It embeds without inverting your control flow.** The runtime is pull-based. You call `next_event()` when your application is ready for the next thing to happen, and nothing happens in between. There are no `async` functions in the library, no background tasks, no callbacks you must register, and no global or thread-local state, so a `Runner` is just a value you own and you can hold as many as you like. Bubbles never asks for your main loop.
 
-**It is deterministic by construction.** Nothing in the runtime reads the clock, the environment, or a global RNG on its own initiative. The only nondeterminism is what you opt into, and you can take all of it back:
+**It is deterministic by construction.** Nothing in the runtime reads the clock or the environment, ever. It reaches for randomness on its own initiative exactly once: an unseeded runner asks the operating system for a starting seed as it is built. Give it a seed and it reaches for nothing at all. The rest of the nondeterminism is what you opt into, and you can take all of it back:
 
-- `rand` is a feature. Build with `default-features = false` and the RNG is not compiled in at all.
-- `random`, `random_range`, and `dice` are ordinary entries in a function registry. Registering your own under the same name replaces the built-in, so you can supply a seeded generator you control.
-- Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `RandomAvailable` is the opt-in random one.
+- `rand` is a feature. Build with `default-features = false` and `random`, `random_range`, `dice` and `RandomAvailable` are not compiled in, and the crate has no entropy source at all - an unseeded runner starts at the beginning of the stream, so that build is reproducible whether or not you pass a seed. If you want unpredictability there, pass `with_seed` a number from wherever your host gets its entropy.
+- With it on, `RunnerBuilder::with_seed(u64)` makes randomness reproducible. `random`, `random_range`, `dice`, and `RandomAvailable` all draw from one generator the runner owns, the stream position travels in the snapshot, and a strategy you write yourself is handed that generator rather than reaching for a global. The three built-ins are also ordinary entries in a function registry, so you can replace them outright if you want the rolls to come from somewhere else.
+- Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `BestLeastRecentlyViewed` is deterministic given the same call sequence; `RandomAvailable` is the opt-in random one.
 
-Given the same script, the same starting variables, and the same option choices, you get the same sequence of events.
+Given the same script, the same starting variables, the same seed, and the same option choices, you get the same sequence of events. Saves are canonical as well: `RunnerSnapshot` and `HashMapStorage` serialise to identical bytes for identical state, so you can hash, diff, or golden-test them.
 
 **It is small and auditable.** Three required dependencies: `indexmap`, `logos`, `thiserror`. The library denies `unsafe_code`; the one crate that opts out is the optional `bubbles-ffi` C wrapper, which cannot be written in safe Rust. No bytecode, no binary format, no asset pipeline. `compile()` returns a struct, so there is nothing to version, load, or ship alongside your binary. CI keeps the library building for `wasm32-unknown-unknown` (with `default-features = false`, see below) and enforces a 300-non-blank-line cap per source file, which is mostly a way of keeping the code readable by someone who did not write it.
 
-**Where the edges are.** `snapshot()` / `restore()` records the active node, visit counts, and which `<<once>>` blocks have fired, which is enough for save-and-resume at node granularity. It deliberately does not serialise the in-progress statement list, so `restore()` re-enters the snapshotted node from its beginning, and neither the `<<detour>>` return stack nor saliency history carries across. It is a bookmark, not a time-travel debugger. Enumeration order from `all_variables` is also unspecified for the default `HashMapStorage`. See [Save and Load](https://viezevingertjes.github.io/bubbles/advanced/save-load.html) for what round-trips and what does not.
+**Where the edges are.** `snapshot()` / `restore()` records the active node, visit counts, and which `<<once>>` blocks have fired, which is enough for save-and-resume at node granularity. It deliberately does not serialise the in-progress statement list, so `restore()` re-enters the snapshotted node from its beginning, and neither the `<<detour>>` return stack nor saliency history carries across. It is a bookmark, not a time-travel debugger - though the random stream does survive it, so rolls continue rather than restart. See [Save and Load](https://viezevingertjes.github.io/bubbles/advanced/save-load.html) for what round-trips and what does not.
 
 ---
 
@@ -147,7 +149,7 @@ Bubbles is a small language. The table below is a reference for what the script 
 |---|---|
 | Lines and options | Plain text, `Speaker:` attribution, `->` branches with optional `<<if>>` guards |
 | Variables | `Number`, `Text`, `Bool`; `<<declare>>`, `<<set>>`, full expression language |
-| Inline interpolation | `{$var}`, `{$gold / 2}`, `{plural($n, "gem", "gems")}` - evaluated before the event arrives |
+| Inline interpolation | `{$var}`, `{$gold / 2}`, `{clamp($hp, 0, 100)}` - evaluated before the event arrives |
 | Inline markup | `[b]text[/b]`, `[color value=red]...[/color]`, `[pause /]` - stripped from text, returned as byte-precise `MarkupSpan`s |
 | Jumps and detours | `<<jump Node>>` replaces the call stack; `<<detour Node>>` / `<<return>>` push/pop it |
 | Conditionals | `<<if>>` / `<<elseif>>` / `<<else>>` / `<<endif>>` |
@@ -155,12 +157,13 @@ Bubbles is a small language. The table below is a reference for what the script 
 | Line groups | `=>` alternatives chosen by the active saliency strategy - no repeated barks |
 | Node groups | Multiple nodes sharing a title with `when:` conditions - great for time-of-day, relationship state |
 | Saliency | `FirstAvailable`, `RandomAvailable`, `BestLeastRecentlyViewed`, or your own |
+| Seeded replay | `RunnerBuilder::with_seed` - same program, same inputs, same seed, same event stream, including `dice()` and `RandomAvailable` |
 | Host commands | `<<play_sound bell>>` surfaces as `DialogueEvent::Command` |
 | Built-in functions | `visited`, `visited_count`, `random`, `random_range`, `dice`, `round`, `floor`, `ceil`, `min`, `max`, `abs`, `clamp`, `string`, `int`, `plural`, `select` |
 | Custom functions | Register closures callable from any expression; registering a built-in's name replaces it |
 | Localisation | `LineProvider` for `#line:id` lookup; translated templates can contain `{expr}` and `[markup]` |
 | Multi-file | `compile_many(&[(name, src)])` with duplicate-title detection and cross-file jump validation |
-| Bookmarks / save | `Runner::snapshot` / `Runner::restore` with `RunnerSnapshot` (always available); enable `serde` to persist snapshot and `HashMapStorage` to disk |
+| Bookmarks / save | `Runner::snapshot` / `Runner::restore` with `RunnerSnapshot` (always available); enable `serde` to persist snapshot and `HashMapStorage` to disk. Saves serialise to canonical bytes, so they can be hashed, diffed, and golden-tested |
 | Line modes | `#narration` and `#debug` on lines set `DialogueEvent::Line::line_mode` for filtering or routing |
 | Variable inspection | `Runner::all_variables`, `Runner::variable`, `Runner::variable_ref`; `VariableStorage::all_variables` (override on custom stores) |
 | Option groups | `#group:<name>` on options for UI constraints (radio buttons, mutually exclusive choices) |
@@ -177,7 +180,7 @@ Bubbles is a small language. The table below is a reference for what the script 
 
 Two things worth knowing about `rand`:
 
-- In the default build, `random()`, `random_range()`, `dice()`, and `RandomAvailable` draw from the operating-system-seeded thread RNG, and there is no seeding API. If you need *reproducible* randomness rather than none, register your own seeded functions instead of relying on the built-ins.
+- In the default build, `random()`, `random_range()`, `dice()`, and `RandomAvailable` draw from the runner's own generator, seeded from the operating system unless you call `RunnerBuilder::with_seed`. Seed it and the session replays identically; the seed also covers the saliency strategy, which replacing the functions would not.
 - **For `wasm32-unknown-unknown` you need `default-features = false`.** The default build pulls in `getrandom`, which does not support that target unless you opt into a JavaScript backend. This is why the CI WebAssembly job builds the no-default-features configurations, and it means the browser-friendly build and the deterministic build are the same build.
 
 ```toml

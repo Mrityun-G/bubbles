@@ -72,7 +72,7 @@ The chapters are meant to be read in order, but each one stands on its own:
 - **[Getting Started](./getting-started/first-dialogue.md)** - go from zero to a running dialogue in ten lines of Rust.
 - **[Tutorial](./tutorial/overview.md)** - build a real NPC scene from scratch, one feature at a time.
 - **[The .bub Language](./language/nodes-and-lines.md)** - every piece of the script format, one concept per page.
-- **[Integrating with Your Engine](./integration/runner.md)** - wiring Bubbles into rendering, input, and save systems, including [Unity and other native hosts via the C ABI](./integration/unity-and-native.md).
+- **[Integrating with Your Engine](./integration/runner.md)** - wiring Bubbles into rendering, input, and save systems, including [native hosts via the C ABI](./integration/native-hosts.md).
 - **[Advanced](./advanced/save-load.md)** - snapshots, multi-file projects, WebAssembly.
 - **[Examples](./examples/tui-runner.md)** - annotated walkthroughs of the demos shipped with the crate.
 - **[API Reference](./api-reference.md)** - the full rustdoc, generated fresh for every release.

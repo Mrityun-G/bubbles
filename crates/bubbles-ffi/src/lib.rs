@@ -1,21 +1,31 @@
-//! C ABI for **bubbles-dialogue** so native hosts (Unity / C# / etc.) can drive dialogue via P/Invoke.
+//! C ABI for **bubbles-dialogue** so a non-Rust host can drive `.bub` dialogue over FFI.
 //!
-//! # Contract
+//! This crate builds a `cdylib`. Rust callers should depend on
+//! [`bubbles-dialogue`](https://docs.rs/bubbles-dialogue) directly — the Rust API exposed here
+//! exists so the integration tests and fuzz targets can reach the entry points without loading a
+//! shared library, and it is not a supported Rust interface.
 //!
-//! - All text is **UTF-8**. Every string is passed as a pointer plus **byte length** (not
-//!   including a null terminator). You may use null-terminated strings from C# by passing
-//!   `strlen` or `Encoding.UTF8.GetByteCount`.
-//! - Functions are **not thread-safe** unless documented otherwise. Call everything from one
-//!   thread (Unity main thread is fine). Do **not** call back into `bubbles_*` from inside a
-//!   [`BubblesHostFn`] callback.
-//! - Outputs allocated by this library are released with [`bubbles_string_free`].
+//! # The contract
+//!
+//! The authoritative C declarations are in
+//! [`include/bubbles_ffi.h`](https://github.com/ViezeVingertjes/bubbles/blob/main/crates/bubbles-ffi/include/bubbles_ffi.h),
+//! and the stability policy — what you may rely on across releases, who frees what, and the event
+//! JSON schema — is reproduced in full under [`abi_policy`]. In short:
+//!
+//! - All text is **UTF-8**. Every input string is a pointer plus a **byte length** (not including a
+//!   null terminator); returned strings are NUL-terminated.
+//! - Functions are **not thread-safe**. Drive one runner from one thread (Unity's main thread is
+//!   fine). Do **not** call back into `bubbles_*` from inside a [`BubblesHostFn`] callback.
+//! - Outputs allocated by this library are released with [`bubbles_string_free`] and nothing else.
 //! - After [`bubbles_runner_new`], the program handle is consumed and must not be freed or reused.
+//! - Check [`bubbles_abi_version`] against [`BUBBLES_ABI_VERSION`] at startup.
 //!
 //! # JSON events
 //!
 //! [`bubbles_runner_next_event`] returns a JSON object per [`bubbles::DialogueEvent`]. The `kind`
 //! field is always present: `NodeStarted`, `Line`, `Options`, `Command`, `NodeComplete`,
 //! `DialogueComplete`, or `Unknown` if a future runtime adds variants this shim does not know yet.
+//! Ignore kinds you do not recognise and keep pumping.
 //!
 //! # Build
 //!
@@ -24,10 +34,13 @@
 //! ```
 //!
 //! The shared library is `target/release/libbubbles_ffi.so` (Linux), `libbubbles_ffi.dylib` (macOS),
-//! or `bubbles_ffi.dll` (Windows). Copy it next to your Unity project and `DllImport` it.
+//! or `bubbles_ffi.dll` (Windows). Copy it next to your host binary and load it — `DllImport` from
+//! C#, `dlopen` or a link flag from C. Prebuilt binaries for Windows x64, macOS x64, macOS arm64,
+//! and Linux x64 are attached to GitHub releases.
 //!
-//! A minimal .NET 10 smoke test lives under `tests/dotnet_smoke/` (run from that directory after
-//! building the `cdylib`).
+//! Two worked consumer examples live in the repository: a dependency-free C host under
+//! `examples/c-host/`, and a .NET 10 P/Invoke smoke test under
+//! `crates/bubbles-ffi/tests/dotnet_smoke/`.
 
 #![deny(missing_docs)]
 
@@ -40,6 +53,9 @@ mod runner_ffi;
 mod runner_state;
 mod util;
 mod value_json;
+
+#[doc = include_str!("../ABI.md")]
+pub mod abi_policy {}
 
 use std::ffi::c_char;
 
@@ -87,8 +103,20 @@ pub struct BubblesSourceFile {
     pub text_len: usize,
 }
 
-/// ABI version of this shim (bump when breaking the C API).
+/// Version of the C ABI contract described in [`abi_policy`].
+///
+/// Bumped **only** for a breaking change to that contract, independently of the crate version.
+/// Mirrors `BUBBLES_ABI_VERSION` in `include/bubbles_ffi.h`; the `header_matches_rust` test keeps
+/// the two from drifting.
+pub const BUBBLES_ABI_VERSION: u32 = 1;
+
+/// Returns [`BUBBLES_ABI_VERSION`] for the loaded library.
+///
+/// The version handshake: a native host calls this at startup and refuses to run if it does not
+/// match the `BUBBLES_ABI_VERSION` its bindings were generated against. This is the one symbol
+/// guaranteed to exist, keep its signature, and be safe to call before anything else in every
+/// release that ships this ABI.
 #[unsafe(no_mangle)]
 pub extern "C" fn bubbles_abi_version() -> u32 {
-    1
+    BUBBLES_ABI_VERSION
 }
