@@ -1,16 +1,19 @@
 [package]
 name          = "bubbles-dialogue"
 version.workspace = true
-description   = "Lightweight engine-agnostic dialogue runtime for Rust games."
+description   = "Embeddable, deterministic dialogue runtime for Rust and WebAssembly."
 documentation = "https://docs.rs/bubbles-dialogue"
 readme        = "../../README.md"
-keywords      = ["dialogue", "game", "narrative", "interactive-fiction"]
-categories    = ["game-development", "parser-implementations"]
+keywords      = ["dialogue", "deterministic", "embeddable", "state-machine", "scripting"]
+categories    = ["game-development", "wasm", "simulation", "text-processing"]
 edition.workspace      = true
 license.workspace      = true
 repository.workspace   = true
 homepage.workspace     = true
 rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
 
 # crates.io package is `bubbles-dialogue`; Rust import path stays `bubbles`.
 [lib]
