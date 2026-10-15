@@ -30,6 +30,7 @@ const EXPORTED_SYMBOLS: &[&str] = &[
     "bubbles_program_variable_declarations_json",
     "bubbles_runner_new",
     "bubbles_runner_new_with_saliency",
+    "bubbles_runner_new_seeded",
     "bubbles_runner_free",
     "bubbles_runner_set_saliency",
     "bubbles_runner_set_locale_json",

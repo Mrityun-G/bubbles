@@ -6,7 +6,7 @@ use std::ptr;
 use bubbles::error::DialogueError;
 use bubbles::{
     BestLeastRecentlyViewed, FirstAvailable, HashMapProvider, HashMapStorage, Program,
-    RandomAvailable, Runner, Value,
+    RandomAvailable, RunnerBuilder, Value,
 };
 
 use crate::error::{clear_err, set_err};
@@ -31,9 +31,12 @@ pub type BubblesHostFn = unsafe extern "C" fn(
     out_result_json: *mut *mut c_char,
 ) -> c_int;
 
+/// Shared body of every runner constructor. `seed` of `None` leaves randomness
+/// seeded from the operating system, as [`Runner::new`](bubbles::Runner::new) does.
 pub unsafe fn build_runner(
     program: *mut c_void,
     saliency: c_int,
+    seed: Option<u64>,
     out_runner: *mut *mut c_void,
 ) -> c_int {
     if out_runner.is_null() {
@@ -46,7 +49,11 @@ pub unsafe fn build_runner(
     }
     clear_err();
     let program = unsafe { *Box::from_raw(program.cast::<Program>()) };
-    let mut runner = Runner::new(program, HashMapStorage::new());
+    let builder = RunnerBuilder::new(program, HashMapStorage::new());
+    let mut runner = match seed {
+        Some(seed) => builder.with_seed(seed).build(),
+        None => builder.build(),
+    };
     ffi_try!(apply_saliency(&mut runner, saliency));
     unsafe { write_handle_out(out_runner, runner) }
 }
@@ -72,7 +79,31 @@ pub unsafe extern "C" fn bubbles_runner_new_with_saliency(
     saliency_kind: c_int,
     out_runner: *mut *mut c_void,
 ) -> c_int {
-    unsafe { build_runner(program, saliency_kind, out_runner) }
+    unsafe { build_runner(program, saliency_kind, None, out_runner) }
+}
+
+/// Same as [`bubbles_runner_new_with_saliency`] but seeds the runner's randomness, so the
+/// session is reproducible.
+///
+/// Two runners created with the same program, the same starting variables, the same `seed`,
+/// and given the same option selections produce the same sequence of events — including every
+/// `random()`, `random_range()` and `dice()` result and every
+/// [`BUBBLES_SALIENCY_RANDOM_AVAILABLE`] choice — in every process and on every platform.
+///
+/// There is no setter counterpart: a seed is a property of a session, so pick it here. Pass
+/// [`BUBBLES_SALIENCY_FIRST_AVAILABLE`] for the default strategy.
+///
+/// # Safety
+///
+/// Same as [`crate::bubbles_runner_new`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn bubbles_runner_new_seeded(
+    program: *mut c_void,
+    saliency_kind: c_int,
+    seed: u64,
+    out_runner: *mut *mut c_void,
+) -> c_int {
+    unsafe { build_runner(program, saliency_kind, Some(seed), out_runner) }
 }
 
 /// Replaces saliency. Prefer before [`crate::bubbles_runner_start`].

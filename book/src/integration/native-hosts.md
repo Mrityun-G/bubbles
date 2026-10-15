@@ -172,6 +172,23 @@ bubbles_runner_new_with_saliency(program, BUBBLES_SALIENCY_BLRV, out nint runner
 
 See [Saliency Strategies](./saliency.md) for what each strategy does.
 
+### Reproducible sessions
+
+`bubbles_runner_new` and `bubbles_runner_new_with_saliency` seed randomness from the operating system, so a script that rolls dice plays differently every run. Pass a seed instead and the session replays exactly:
+
+```csharp
+[DllImport("bubbles_ffi")]
+static extern int bubbles_runner_new_seeded(nint program, int saliencyKind, ulong seed, out nint outRunner);
+```
+
+```csharp
+bubbles_runner_new_seeded(program, BUBBLES_SALIENCY_FIRST_AVAILABLE, 20260501, out nint runner);
+```
+
+Same program, same starting variables, same seed, same option selections gives the same sequence of events - every `random()`, `random_range()` and `dice()` result and every `BUBBLES_SALIENCY_RANDOM_AVAILABLE` choice - in every process and on every platform. That is what makes replays, lockstep multiplayer, and golden-file tests of a conversation reachable from a native host.
+
+Note `ulong`, not `long`: the seed is a `uint64_t`. There is no `set_seed` counterpart, because a seed belongs to a session rather than to a moment in one - choose it at construction. A snapshot records where the random stream had reached, so a restored save continues it rather than replaying from the top.
+
 ### Locale
 
 Pass a JSON object of `line_id -> template` strings before `bubbles_runner_start`:

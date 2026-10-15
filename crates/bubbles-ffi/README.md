@@ -46,7 +46,7 @@ cd examples/c-host && make run
 - Free every string the library returns with `bubbles_string_free`, never `free()`.
 - Status is `BUBBLES_OK` / `BUBBLES_DONE` / `BUBBLES_ERR`. `BUBBLES_DONE` is a success, so
   `rc != BUBBLES_OK` is not an error test.
-- `bubbles_runner_new` **consumes** the program handle.
+- Every `bubbles_runner_new*` constructor **consumes** the program handle.
 - Not thread-safe — drive one runner from one thread.
 - Check `bubbles_abi_version()` against `BUBBLES_ABI_VERSION` at startup.
 
