@@ -61,9 +61,12 @@ cargo run -p bubbles-tui -- examples/harbour/harbour.bub examples/harbour/servic
 bash scripts/install-hooks.sh
 ```
 
-The hook runs the same gates as CI before each commit, which saves a round trip
-through a red CI run. It needs **`jq`** on your `PATH`. It is genuinely optional
-— if you would rather let CI tell you, that is fine.
+The hook runs most of the gates before each commit: version sync, formatting,
+clippy (with and without default features), rustdoc, and file sizes. That
+catches a red CI run before you push it. It skips the test suite, the
+WebAssembly build, and the sign-off check, so a clean commit is still not a
+promise of green CI. It needs **`jq`** on your `PATH`, and it is genuinely
+optional: if you would rather let CI tell you, that is fine.
 
 ## Sign your commits (DCO)
 
@@ -138,8 +141,11 @@ you. These lint sets are opinionated and occasionally wrong.
 **If a lint is telling you to make the code worse, say so in the pull request.**
 We would rather discuss one lint than have you contort a clean patch around it.
 Adding a scoped `#[allow(...)]` with a comment explaining why is a legitimate
-outcome — but ask first rather than scattering them, since the codebase
-currently has none.
+outcome, but ask first rather than scattering them. The few already in `src/`
+are all narrow: two float-to-integer casts in the random built-ins, each
+followed by a checked conversion; `multiple_crate_versions` at the top of the
+TUI crate; and one unreachable match arm that keeps the C ABI
+forward-compatible.
 
 ### About the 300-line file cap
 
