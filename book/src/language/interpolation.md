@@ -88,17 +88,17 @@ title: LevelUp
 
 ## Localisation-aware interpolation
 
-When a line carries a `#line:id` tag and a [`LineProvider`](../integration/localisation.md) returns a translation, `{…}` expressions in the translation are evaluated against the current variable storage. Translators can reorder or reshape interpolations for their language:
+When a line carries a `#line:id` tag and a [`LineProvider`](../integration/localisation.md) returns a translation, `{…}` expressions in the translation are evaluated against the current variable storage. Translators can reorder the interpolations to suit their language:
 
 ```text
 # English source
-You found {$n} {plural($n, "gem", "gems")}.
+You found {$n} gems in the {$place}.
 
 # German translation (stored in the provider)
-Du hast {$n} {plural($n, "Edelstein", "Edelsteine")} gefunden.
+Im {$place} hast du {$n} Edelsteine gefunden.
 ```
 
-Same variables, same expressions, grammatically correct output.
+Same variables, same values, word order decided by the translator. Grammar that depends on a *value* - plural forms, agreement - needs a function that knows the rules of the language; see [Localisation](../integration/localisation.md).
 
 ## Markup and interpolation together
 

@@ -27,7 +27,7 @@ A host that cannot link Rust goes through [`bubbles-ffi`](crates/bubbles-ffi/), 
 
 - `rand` is a feature. Build with `default-features = false` and the RNG is not compiled in at all.
 - `random`, `random_range`, and `dice` are ordinary entries in a function registry. Registering your own under the same name replaces the built-in, so you can supply a seeded generator you control.
-- Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `RandomAvailable` is the opt-in random one.
+- Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `BestLeastRecentlyViewed` is deterministic given the same call sequence; `RandomAvailable` is the opt-in random one.
 
 Given the same script, the same starting variables, and the same option choices, you get the same sequence of events.
 
@@ -149,7 +149,7 @@ Bubbles is a small language. The table below is a reference for what the script 
 |---|---|
 | Lines and options | Plain text, `Speaker:` attribution, `->` branches with optional `<<if>>` guards |
 | Variables | `Number`, `Text`, `Bool`; `<<declare>>`, `<<set>>`, full expression language |
-| Inline interpolation | `{$var}`, `{$gold / 2}`, `{plural($n, "gem", "gems")}` - evaluated before the event arrives |
+| Inline interpolation | `{$var}`, `{$gold / 2}`, `{clamp($hp, 0, 100)}` - evaluated before the event arrives |
 | Inline markup | `[b]text[/b]`, `[color value=red]...[/color]`, `[pause /]` - stripped from text, returned as byte-precise `MarkupSpan`s |
 | Jumps and detours | `<<jump Node>>` replaces the call stack; `<<detour Node>>` / `<<return>>` push/pop it |
 | Conditionals | `<<if>>` / `<<elseif>>` / `<<else>>` / `<<endif>>` |

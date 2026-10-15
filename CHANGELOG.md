@@ -40,6 +40,18 @@ are not published to crates.io.
 - `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
   and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
 
+### Changed
+
+- The `plural` and `select` built-ins are no longer documented as
+  internationalisation. `plural` is described as the two-form rule it actually
+  implements - the singular form when `|n|` is 1, the plural form otherwise -
+  and as incorrect for languages with other plural categories, with
+  `FunctionLibrary::register` named as the way to install a correct rule.
+  `select` now records that its `|` and `:` separators cannot be escaped. The
+  guide moves both out of the Localisation chapter into Expressions; the
+  `LineProvider` seam that does localise is unchanged. Behaviour, the public
+  API, and the `.bub` language are untouched.
+
 ### Fixed
 
 - The guide described the `NodeStarted` and `NodeComplete` FFI events as
