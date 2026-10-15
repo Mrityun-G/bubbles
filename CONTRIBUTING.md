@@ -63,8 +63,9 @@ bash scripts/install-hooks.sh
 
 The hook runs most of the gates before each commit: version sync, formatting,
 clippy (with and without default features), rustdoc, and file sizes. That
-catches a red CI run before you push it. It skips the test suite, the
-WebAssembly build, and the sign-off check, so a clean commit is still not a
+catches a red CI run before you push it. It does not run the rest of CI: the
+test suite, the WebAssembly build, the sign-off check, the dependency audit,
+the .NET FFI smoke test, and the MSRV build. A clean commit is still not a
 promise of green CI. It needs **`jq`** on your `PATH`, and it is genuinely
 optional: if you would rather let CI tell you, that is fine.
 
