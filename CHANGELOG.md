@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Versions refer to the published [`bubbles-dialogue`](https://crates.io/crates/bubbles-dialogue)
-crate. The `bubbles-ffi` and `bubbles-tui` crates share the workspace version but
-are not published to crates.io.
+crate. The `bubbles-ffi` and `bubbles-cli` crates share the workspace version and are
+publishable, but are not published to crates.io yet.
 
 > **Note on history.** This file was reconstructed in October 2026 from git
 > history, release tags, and crates.io publication records. Releases 0.1.0
@@ -39,6 +39,32 @@ are not published to crates.io.
   the event loop, and selects an option. CI builds and runs it.
 - `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
   and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
+- **`bubbles check <file.bub>...`**, a script checker with no Rust in sight. It
+  compiles the given files as one programme, prints one diagnostic per line on
+  stdout, and exits non-zero on failure. `--quiet` drops the success summary.
+- A default-on `tui` feature on `bubbles-cli`. With
+  `cargo install bubbles-cli --no-default-features` the terminal player is left
+  out and the checker's whole dependency tree is `indexmap`, `logos`, and
+  `thiserror` - small enough to add to someone else's CI.
+- `?` opens a key list in the player. The footer fits six hints and the tool
+  binds thirteen verbs, so the rest had been unreachable without reading the
+  source.
+
+### Changed
+
+- **`bubbles-tui` is now `bubbles-cli`, and its binary is `bubbles`.** The crate
+  is publishable, with a description and keywords aimed at checking and
+  embedding rather than at narrative authoring. `cargo run -p bubbles-tui -- X`
+  becomes `cargo run -p bubbles-cli -- play X`; a bare path list with no verb
+  still means `play`.
+- **Reload moved off `r` and onto `Ctrl+R` (or `F5`), and `r` now means rerun.**
+  Reload discards every variable with no confirmation and no undo, and it used
+  to sit on the lowercase half of the only case-sensitive binding in a tool
+  where `q/Q`, `j/J`, `k/K`, `b/B` and `x/X` are all interchangeable. The footer
+  now spells it out as `Ctrl+R: reload (wipes variables)`.
+- The guide's two TUI pages merged into one
+  [CLI chapter](https://viezevingertjes.github.io/bubbles/getting-started/cli.html)
+  that documents `check` first and `play` second. The old URLs redirect.
 
 ### Fixed
 
