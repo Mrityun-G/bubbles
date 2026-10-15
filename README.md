@@ -17,7 +17,7 @@ It works well for games too, and for the same reason: if your engine needs repla
 
 A host that cannot link Rust goes through [`bubbles-ffi`](crates/bubbles-ffi/), a C ABI with [prebuilt binaries](https://github.com/ViezeVingertjes/bubbles/releases) for Windows, macOS, and Linux.
 
-Scripts can be checked without writing any Rust at all. [`bubbles-cli`](crates/bubbles-cli/) installs a `bubbles` binary whose `check` verb compiles a set of `.bub` files, prints one diagnostic per line, and exits non-zero - a CI step in one line, with a three-crate dependency tree when the terminal player is left out:
+Scripts can be checked without writing any Rust at all. [`bubbles-cli`](crates/bubbles-cli/) installs a `bubbles` binary whose `check` verb compiles a set of `.bub` files, prints one diagnostic per line, and exits non-zero - a CI step in one line, adding no dependencies of its own beyond the library's three when the terminal player is left out:
 
 ```bash
 cargo install bubbles-cli --no-default-features

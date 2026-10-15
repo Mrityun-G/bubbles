@@ -29,9 +29,9 @@ summary and leaves only diagnostics, which is usually what you want in CI:
 - run: bubbles check --quiet dialogue/*.bub
 ```
 
-`--no-default-features` is worth typing. It drops the terminal UI and leaves a binary whose
-whole dependency tree is three crates, which is the difference between a check step people
-add and one they skip.
+`--no-default-features` is worth typing. It drops the terminal UI and leaves a binary that
+adds nothing to the library's own three direct dependencies, which is the difference
+between a check step people add and one they skip.
 
 ## Play a script
 

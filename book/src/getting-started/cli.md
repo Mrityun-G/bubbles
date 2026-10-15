@@ -45,7 +45,7 @@ for f in dialogue/*.bub; do bubbles check "$f"; done
 - run: bubbles check --quiet dialogue/*.bub
 ```
 
-`--no-default-features` turns off the terminal UI and leaves a checker whose entire dependency tree is three crates. `check` behaves identically either way — it never reaches the parts of the runtime that the feature turns on.
+`--no-default-features` turns off the terminal UI and leaves a checker that adds nothing to the library's own three direct dependencies — `indexmap`, `logos`, `thiserror`. `check` behaves identically either way — it never reaches the parts of the runtime that the feature turns on.
 
 ## `bubbles play`
 

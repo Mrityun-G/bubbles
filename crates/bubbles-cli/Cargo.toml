@@ -60,8 +60,8 @@ required-features = ["tui"]
 
 [features]
 default = ["tui"]
-# The interactive player. Off, `bubbles check` is all that is built and the
-# dependency tree is three crates deep - small enough to put in someone else's CI.
+# The interactive player. Off, `bubbles check` is all that is built and the only
+# dependencies are the library's own three - small enough for someone else's CI.
 tui     = ["dep:crossterm", "dep:ratatui", "bubbles-dialogue/full"]
 
 [dependencies]

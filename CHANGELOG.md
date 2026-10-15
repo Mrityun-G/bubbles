@@ -134,8 +134,9 @@ publishable, but are not published to crates.io yet.
   stdout, and exits non-zero on failure. `--quiet` drops the success summary.
 - A default-on `tui` feature on `bubbles-cli`. With
   `cargo install bubbles-cli --no-default-features` the terminal player is left
-  out and the checker's whole dependency tree is `indexmap`, `logos`, and
-  `thiserror` - small enough to add to someone else's CI.
+  out and the checker adds nothing to the library's own three direct
+  dependencies - `indexmap`, `logos`, and `thiserror` - which is small enough to
+  add to someone else's CI.
 - `?` opens a key list in the player. The footer fits six hints and the tool
   binds thirteen verbs, so the rest had been unreachable without reading the
   source.
