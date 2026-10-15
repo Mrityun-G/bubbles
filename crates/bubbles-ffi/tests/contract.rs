@@ -724,6 +724,60 @@ fn the_error_slot_does_not_leak_between_threads() {
     );
 }
 
+/// A hand-written table of entry points goes stale the first time someone adds
+/// one, and the blind spot it leaves is the same blind spot this file was
+/// written to close. So the header — which `header.rs` already treats as the
+/// definitive ABI surface — decides what has to be covered: every `bubbles_*`
+/// function it declares must be *called* somewhere in this file.
+///
+/// What that proves is modest, and worth being precise about: it proves the
+/// symbol is exercised here, not that it is exercised with a NULL. A mention in
+/// a comment does not count, because the match requires the opening parenthesis
+/// of a call, but a happy-path call would satisfy it. It is a ratchet against
+/// forgetting, not a measure of thoroughness. The value is that a new entry
+/// point cannot be added without someone opening this file and deciding what its
+/// bad-argument case is.
+#[test]
+fn every_entry_point_in_the_header_is_exercised_here() {
+    const HEADER: &str = include_str!("../include/bubbles_ffi.h");
+    const SELF: &str = include_str!("contract.rs");
+
+    /// Entry points with nothing to validate: these take no pointer the library
+    /// could reject, and a NULL handle is a documented no-op covered by
+    /// `freeing_a_null_handle_is_a_no_op`.
+    const NO_ARGUMENTS_TO_GET_WRONG: &[&str] = &["bubbles_abi_version"];
+
+    let mut declared: Vec<&str> = Vec::new();
+    for (index, _) in HEADER.match_indices("bubbles_") {
+        let rest = &HEADER[index..];
+        let end = rest
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .unwrap_or(rest.len());
+        let (name, after) = (&rest[..end], &rest[end..]);
+        if after.starts_with('(') && !declared.contains(&name) {
+            declared.push(name);
+        }
+    }
+
+    assert!(
+        declared.len() >= 26,
+        "only {} entry points found in the header, so the scan is not reading it: {declared:?}",
+        declared.len()
+    );
+
+    let missing: Vec<&&str> = declared
+        .iter()
+        .filter(|name| !NO_ARGUMENTS_TO_GET_WRONG.contains(name))
+        .filter(|name| !SELF.contains(&format!("{name}(")))
+        .collect();
+
+    assert!(
+        missing.is_empty(),
+        "the header declares entry points that this file never calls, so their \
+         bad-argument behaviour is untested: {missing:?}"
+    );
+}
+
 /// The determinism claim has to hold at this boundary too, since a native host
 /// reaches the runtime only through it. Two separately compiled programs and two
 /// separately constructed runners must produce the same event JSON, byte for
