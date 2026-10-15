@@ -44,7 +44,7 @@ Bubbles has no opinion about rendering, input, audio, or timing, and provides no
 
 Determinism here means something specific and checkable: **given the same program, the same starting variable state, and the same sequence of option selections, you get the same sequence of events.**
 
-This holds because the runtime has no independent access to anything that varies. It does not read the system clock, consult the environment, depend on thread scheduling, or reach for a global RNG. Node lookup is backed by an `IndexMap`, so iteration follows insertion order rather than hash order. There is no `unsafe` code in the workspace (`unsafe_code = "deny"`), so there is no uninitialised memory to behave unpredictably.
+This holds because the runtime has no independent access to anything that varies. It does not read the system clock, consult the environment, depend on thread scheduling, or reach for a global RNG. Node lookup is backed by an `IndexMap`, so iteration follows insertion order rather than hash order. The library denies `unsafe_code`, so there is no uninitialised memory to behave unpredictably. The one crate that opts out is the optional `bubbles-ffi` C wrapper, which cannot be written in safe Rust; nothing in it is reachable from a pure Rust host.
 
 That leaves exactly three places where nondeterminism can enter, all of them under your control.
 
