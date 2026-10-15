@@ -43,6 +43,10 @@
 //! `crates/bubbles-ffi/tests/dotnet_smoke/`.
 
 #![deny(missing_docs)]
+// The workspace denies `unsafe_code`; this crate is the one place that exists to break that
+// rule. Every entry point below takes raw pointers from a foreign caller, so the whole crate
+// is the unsafe boundary rather than a few marked spots inside it.
+#![allow(unsafe_code)]
 
 mod compile_ffi;
 mod error;
@@ -117,6 +121,6 @@ pub const BUBBLES_ABI_VERSION: u32 = 1;
 /// guaranteed to exist, keep its signature, and be safe to call before anything else in every
 /// release that ships this ABI.
 #[unsafe(no_mangle)]
-pub extern "C" fn bubbles_abi_version() -> u32 {
+pub const extern "C" fn bubbles_abi_version() -> u32 {
     BUBBLES_ABI_VERSION
 }

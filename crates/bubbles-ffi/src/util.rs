@@ -8,7 +8,7 @@ use crate::error::set_err;
 use crate::{BUBBLES_ERR, BUBBLES_OK};
 
 /// The concrete runner type behind every `runner` handle in this ABI.
-pub(crate) type FfiRunner = Runner<HashMapStorage>;
+pub type FfiRunner = Runner<HashMapStorage>;
 
 /// Unwraps a `Result<T, impl Into<String>>` inside an FFI entry point: on `Err` the
 /// thread-local error is set and the function returns `BUBBLES_ERR`.
@@ -30,7 +30,7 @@ pub(crate) use ffi_try;
 /// # Safety
 ///
 /// `program` must be null or a live handle from `bubbles_compile*`.
-pub(crate) unsafe fn program_ref<'a>(program: *mut c_void) -> Result<&'a Program, &'static str> {
+pub unsafe fn program_ref<'a>(program: *mut c_void) -> Result<&'a Program, &'static str> {
     if program.is_null() {
         return Err("program was null");
     }
@@ -42,7 +42,7 @@ pub(crate) unsafe fn program_ref<'a>(program: *mut c_void) -> Result<&'a Program
 /// # Safety
 ///
 /// `runner` must be null or a live handle from `bubbles_runner_new*`.
-pub(crate) unsafe fn runner_ref<'a>(runner: *mut c_void) -> Result<&'a FfiRunner, &'static str> {
+pub unsafe fn runner_ref<'a>(runner: *mut c_void) -> Result<&'a FfiRunner, &'static str> {
     if runner.is_null() {
         return Err("runner was null");
     }
@@ -55,9 +55,7 @@ pub(crate) unsafe fn runner_ref<'a>(runner: *mut c_void) -> Result<&'a FfiRunner
 ///
 /// `runner` must be null or a live handle from `bubbles_runner_new*`, and no other
 /// reference to it may be alive.
-pub(crate) unsafe fn runner_mut<'a>(
-    runner: *mut c_void,
-) -> Result<&'a mut FfiRunner, &'static str> {
+pub unsafe fn runner_mut<'a>(runner: *mut c_void) -> Result<&'a mut FfiRunner, &'static str> {
     if runner.is_null() {
         return Err("runner was null");
     }
@@ -69,7 +67,7 @@ pub(crate) unsafe fn runner_mut<'a>(
 /// # Safety
 ///
 /// `out` must be non-null and writable.
-pub(crate) unsafe fn write_handle_out<T>(out: *mut *mut c_void, value: T) -> c_int {
+pub unsafe fn write_handle_out<T>(out: *mut *mut c_void, value: T) -> c_int {
     unsafe {
         *out = Box::into_raw(Box::new(value)).cast::<c_void>();
     }
@@ -81,10 +79,7 @@ pub(crate) unsafe fn write_handle_out<T>(out: *mut *mut c_void, value: T) -> c_i
 /// # Safety
 ///
 /// `ptr` + `len` must be valid for the duration of the returned `str` borrow.
-pub(crate) unsafe fn str_from_parts<'a>(
-    ptr: *const c_char,
-    len: usize,
-) -> Result<&'a str, &'static str> {
+pub unsafe fn str_from_parts<'a>(ptr: *const c_char, len: usize) -> Result<&'a str, &'static str> {
     if ptr.is_null() {
         return Err("null pointer");
     }
@@ -95,21 +90,19 @@ pub(crate) unsafe fn str_from_parts<'a>(
 /// Converts `s` into a NUL-terminated C string, writes the raw pointer to `*out`, and returns
 /// `BUBBLES_OK`. Sets the thread-local error and returns `BUBBLES_ERR` if `s` contains an
 /// interior NUL byte.
-pub(crate) fn write_cstring_out(out: *mut *mut c_char, s: String) -> c_int {
+pub fn write_cstring_out(out: *mut *mut c_char, s: String) -> c_int {
     write_cstring_out_with_error(out, s, "string contained interior NUL")
 }
 
-pub(crate) fn write_cstring_out_with_error(
+/// As [`write_cstring_out`], but with a caller-supplied message for the interior-NUL case.
+pub fn write_cstring_out_with_error(
     out: *mut *mut c_char,
     s: String,
     interior_nul_error: &'static str,
 ) -> c_int {
-    let cs = match CString::new(s) {
-        Ok(c) => c,
-        Err(_) => {
-            set_err(interior_nul_error);
-            return BUBBLES_ERR;
-        }
+    let Ok(cs) = CString::new(s) else {
+        set_err(interior_nul_error);
+        return BUBBLES_ERR;
     };
     unsafe {
         *out = cs.into_raw();

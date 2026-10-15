@@ -31,7 +31,7 @@ pub type BubblesHostFn = unsafe extern "C" fn(
     out_result_json: *mut *mut c_char,
 ) -> c_int;
 
-pub(crate) unsafe fn build_runner(
+pub unsafe fn build_runner(
     program: *mut c_void,
     saliency: c_int,
     out_runner: *mut *mut c_void,
@@ -103,10 +103,10 @@ pub unsafe extern "C" fn bubbles_runner_set_locale_json(
     json_len: usize,
 ) -> c_int {
     let runner = ffi_try!(unsafe { runner_mut(runner) });
-    let json_str = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
+    let text = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
     clear_err();
     let map: std::collections::HashMap<String, String> =
-        ffi_try!(serde_json::from_str(json_str).map_err(|e| format!("locale JSON: {e}")));
+        ffi_try!(serde_json::from_str(text).map_err(|e| format!("locale JSON: {e}")));
     let mut provider = HashMapProvider::new();
     for (k, v) in map {
         provider.insert(k, v);
@@ -135,7 +135,7 @@ pub unsafe extern "C" fn bubbles_runner_register_function(
     let userdata_bits = userdata as usize;
     runner.library_mut().register(name, move |args| {
         let userdata = userdata_bits as *mut c_void;
-        host_callback_bridge(&name_for_errors, cb, userdata, args)
+        host_callback_bridge(&name_for_errors, cb, userdata, &args)
     });
     BUBBLES_OK
 }
@@ -144,9 +144,9 @@ fn host_callback_bridge(
     name: &str,
     cb: BubblesHostFn,
     userdata: *mut c_void,
-    args: Vec<Value>,
+    args: &[Value],
 ) -> bubbles::Result<Value> {
-    let args_json = values_to_json_array(&args).map_err(|e| DialogueError::Function {
+    let args_json = values_to_json_array(args).map_err(|e| DialogueError::Function {
         name: name.to_owned(),
         message: e.to_string(),
     })?;
@@ -160,7 +160,7 @@ fn host_callback_bridge(
             userdata,
             args_cs.as_ptr(),
             args_cs.as_bytes().len(),
-            &mut out_ptr,
+            &raw mut out_ptr,
         )
     };
     if out_ptr.is_null() {
