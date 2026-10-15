@@ -3,7 +3,7 @@
 use bubbles::Value;
 
 /// Parses a [`Value`] from JSON (same encoding `serde_json` uses for `Value` with the `serde` feature).
-pub(crate) fn value_from_json_slice(s: &[u8]) -> Result<Value, String> {
+pub fn value_from_json_slice(s: &[u8]) -> Result<Value, String> {
     let v: serde_json::Value =
         serde_json::from_slice(s).map_err(|e| format!("invalid value JSON: {e}"))?;
     json_to_value(&v)
@@ -26,11 +26,11 @@ fn json_to_value(v: &serde_json::Value) -> Result<Value, String> {
 }
 
 /// Serializes a [`Value`] to a JSON string for host exchange.
-pub(crate) fn value_to_json_string(v: &Value) -> Result<String, serde_json::Error> {
+pub fn value_to_json_string(v: &Value) -> Result<String, serde_json::Error> {
     serde_json::to_string(v)
 }
 
 /// Builds a JSON array of [`Value`] for host function arguments.
-pub(crate) fn values_to_json_array(args: &[Value]) -> Result<String, serde_json::Error> {
+pub fn values_to_json_array(args: &[Value]) -> Result<String, serde_json::Error> {
     serde_json::to_string(args)
 }
