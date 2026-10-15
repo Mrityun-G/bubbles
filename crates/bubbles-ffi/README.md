@@ -1,7 +1,11 @@
 # bubbles-ffi
 
-C ABI shared library for driving `.bub` dialogue from Unity, C#, C++, Godot .NET, or any
-host that can load a native plugin and call a C function. No Rust required.
+C ABI shared library for driving `.bub` dialogue from C, C++, C#, or any host that can
+load a native plugin and call a C function. Unity, Godot .NET and plain P/Invoke all work.
+No Rust required.
+
+If you are writing Rust, use [`bubbles-dialogue`](https://crates.io/crates/bubbles-dialogue)
+directly — this crate exists for hosts that cannot.
 
 - **ABI version:** 1 (`bubbles_abi_version()`)
 - **Header:** [`include/bubbles_ffi.h`](include/bubbles_ffi.h)

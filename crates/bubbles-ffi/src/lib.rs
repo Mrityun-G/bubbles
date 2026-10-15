@@ -1,4 +1,4 @@
-//! C ABI for **bubbles-dialogue** so native hosts (Unity / C# / etc.) can drive dialogue via P/Invoke.
+//! C ABI for **bubbles-dialogue** so a non-Rust host can drive `.bub` dialogue over FFI.
 //!
 //! This crate builds a `cdylib`. Rust callers should depend on
 //! [`bubbles-dialogue`](https://docs.rs/bubbles-dialogue) directly — the Rust API exposed here
@@ -34,8 +34,9 @@
 //! ```
 //!
 //! The shared library is `target/release/libbubbles_ffi.so` (Linux), `libbubbles_ffi.dylib` (macOS),
-//! or `bubbles_ffi.dll` (Windows). Copy it next to your Unity project and `DllImport` it. Prebuilt
-//! binaries for Windows x64, macOS x64, macOS arm64, and Linux x64 are attached to GitHub releases.
+//! or `bubbles_ffi.dll` (Windows). Copy it next to your host binary and load it — `DllImport` from
+//! C#, `dlopen` or a link flag from C. Prebuilt binaries for Windows x64, macOS x64, macOS arm64,
+//! and Linux x64 are attached to GitHub releases.
 //!
 //! Two worked consumer examples live in the repository: a dependency-free C host under
 //! `examples/c-host/`, and a .NET 10 P/Invoke smoke test under

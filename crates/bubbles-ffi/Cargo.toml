@@ -1,11 +1,11 @@
 [package]
 name          = "bubbles-ffi"
 version.workspace = true
-description   = "C ABI for bubbles-dialogue (Unity / P/Invoke and other native hosts)."
+description   = "C ABI for bubbles-dialogue: drive .bub dialogue from a non-Rust host."
 documentation = "https://docs.rs/bubbles-ffi"
 readme        = "README.md"
-keywords      = ["dialogue", "ffi", "unity", "game-development", "interop"]
-categories    = ["game-development", "api-bindings"]
+keywords      = ["dialogue", "ffi", "c-api", "interop", "game-development"]
+categories    = ["game-development", "api-bindings", "external-ffi-bindings"]
 edition.workspace      = true
 license.workspace      = true
 repository.workspace   = true
