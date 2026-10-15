@@ -5,8 +5,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before filing, check the [open issues](https://github.com/ViezeVingertjes/bubbles/issues)
-        to see if this is already known.
+        Thanks for taking the time to file this. A quick check of the
+        [open issues](https://github.com/ViezeVingertjes/bubbles/issues) saves
+        duplicates, but filing a duplicate is not a problem - we would rather
+        hear about it twice than not at all.
+
+        If you are not sure whether something is a bug or intended behaviour,
+        file it anyway and say so.
 
   - type: textarea
     id: repro
@@ -52,6 +57,6 @@ body:
     id: crate-version
     attributes:
       label: bubbles-dialogue version
-      placeholder: "0.3.0"
+      placeholder: "2.0.0"
     validations:
       required: true

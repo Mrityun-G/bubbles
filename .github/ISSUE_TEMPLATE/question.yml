@@ -1,0 +1,42 @@
+name: Question or help
+description: Ask how to do something with Bubbles
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions are welcome here. If the answer turns out to be "the guide
+        should have said so", that becomes a documentation fix - so asking
+        helps the project either way.
+
+        The [guide](https://viezevingertjes.github.io/bubbles/) covers the
+        language reference, integration, localisation, and save/load, but you do
+        not need to have read all of it before asking.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: >
+        Describe the dialogue or game behaviour you are aiming for. Include the
+        `.bub` script or Rust snippet you have so far, even if it does not work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: >
+        Optional. Which parts of the guide or API you have already looked at, so
+        nobody points you back at something you have read.
+    validations:
+      required: false
+
+  - type: input
+    id: crate-version
+    attributes:
+      label: bubbles-dialogue version
+      placeholder: "2.0.0"
+    validations:
+      required: false
