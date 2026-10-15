@@ -1,6 +1,6 @@
 # Contributing to bubbles
 
-Contributions of every size are welcome — typo fixes, documentation, tests, bug
+Contributions of every size are welcome: typo fixes, documentation, tests, bug
 reports, and code. You do not need to be an experienced Rust developer to help
 here, and you do not need permission to start.
 
@@ -21,7 +21,7 @@ here, and you do not need permission to start.
   before writing code, so we can agree on the shape before you invest the time.
 
 Small pull requests are easier to review and land faster than large ones. If you
-are unsure whether something is worth doing, open an issue and ask — a short
+are unsure whether something is worth doing, open an issue and ask. A short
 question is never a nuisance.
 
 ## How much process applies to your change?
@@ -90,7 +90,7 @@ tells you how to fix it if it is missing. You can also check before pushing:
 bash scripts/check-dco.sh
 ```
 
-If you forget, nothing is lost — amend the last commit with
+If you forget, nothing is lost: amend the last commit with
 `git commit --amend -s --no-edit`, or sign off a whole branch with
 `git rebase --signoff origin/main`, then push with `--force-with-lease`.
 
@@ -110,7 +110,7 @@ docs: add doc tests for Program::variable_declarations
 ```
 
 Types in use: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`.
-If you get the prefix wrong, a reviewer will suggest the right one — it is not a
+If you get the prefix wrong, a reviewer will suggest the right one. It is not a
 reason to reject a change.
 
 ## The quality gates
@@ -151,8 +151,8 @@ forward-compatible.
 
 `scripts/check-file-sizes.sh` fails if any file matching `crates/*/src/**/*.rs`
 exceeds 300 non-blank lines. **Integration tests under `crates/*/tests/` are not
-covered** — write as much test code there as the change needs. Unit-test files do
-count, because they live beside the code in `src/` (for example
+covered**, so write as much test code there as the change needs. Unit-test
+files do count, because they live beside the code in `src/` (for example
 `src/library/library_tests/`), so those get split into submodules as they grow.
 
 It is a prompt to split a file along a concept boundary, not a quality bar you
@@ -163,7 +163,7 @@ is a reasonable thing to want a second opinion on.
 The conventions behind it:
 
 - One concept per file. No `utils.rs`, `helpers.rs`, or `common.rs` catch-alls in
-  `src/`. (`tests/common/mod.rs` is a deliberate exception — it is the shared
+  `src/`. (`tests/common/mod.rs` is a deliberate exception: it is the shared
   integration-test harness.)
 - `mod.rs` files stay thin: declare submodules, re-export the public surface.
 
@@ -172,8 +172,8 @@ The conventions behind it:
 New behaviour needs a test. Integration tests live in
 `crates/bubbles-dialogue/tests/` and drive the public API the way a game would.
 
-Writing the failing test first is a habit worth having — it proves the test
-actually exercises the bug — but we care about the test existing and failing
+Writing the failing test first is a habit worth having, since it proves the
+test actually exercises the bug, but we care about the test existing and failing
 without your fix, not the order you typed things in. If you have a fix and are
 stuck on how to test it, open a draft PR and ask.
 
@@ -203,7 +203,7 @@ cargo +nightly fuzz run compile_bub fuzz/corpus/compile_bub -- -max_total_time=6
 ## Pull requests
 
 All changes reach `main` through a pull request. Open it as a **draft** if you
-want early feedback on an unfinished change — that is encouraged, not a sign of
+want early feedback on an unfinished change. That is encouraged, not a sign of
 weakness.
 
 - [ ] Commits are signed off (`git commit -s`)
