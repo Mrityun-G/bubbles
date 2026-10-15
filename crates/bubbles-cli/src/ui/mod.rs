@@ -6,6 +6,8 @@
 mod dialogue;
 mod error_overlay;
 mod footer;
+mod help;
+mod popup;
 mod transcript;
 
 use ratatui::Frame;
@@ -51,5 +53,9 @@ pub fn render(state: &AppState, frame: &mut Frame<'_>) {
 
     if let Some(overlay) = state.error_overlay() {
         error_overlay::render(overlay, frame);
+    }
+    // Drawn last so the key list is readable even over an error popup.
+    if state.help_visible() {
+        help::render(frame);
     }
 }

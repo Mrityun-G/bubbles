@@ -1,7 +1,7 @@
 //! Transcript-panel tests: the running log of everything the runner has
 //! emitted during this session.
 
-use bubbles_tui::{AppState, Intent, TranscriptEntry, render};
+use bubbles_cli::{AppState, Intent, TranscriptEntry, render};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 

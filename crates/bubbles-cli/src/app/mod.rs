@@ -6,12 +6,13 @@
 //! translated into intents upstream.
 
 mod build;
+mod restart;
 
+use crate::diagnostic::Diagnostic;
 use crate::display::{DisplayedLine, DisplayedOption, FocusPanel, FocusShift};
 use crate::history::HistoryStep;
 use crate::ingest::apply_event;
 use crate::intent::Intent;
-use crate::overlay::ErrorOverlay;
 use crate::session::Session;
 use crate::source_set::SourceSet;
 use crate::transcript::{Transcript, TranscriptEntry};
@@ -28,17 +29,18 @@ pub struct AppState {
     pub(super) focused_option: Option<usize>,
     pub(super) transcript: Transcript,
     pub(super) focus: FocusPanel,
-    pub(super) error_overlay: Option<ErrorOverlay>,
+    pub(super) error_overlay: Option<Diagnostic>,
     pub(super) history: Vec<HistoryStep>,
     pub(super) recording: bool,
+    pub(super) help_visible: bool,
     pub(super) quit_requested: bool,
 }
 
 impl AppState {
-    /// `true` when there is a previous visible step to rewind to.
+    /// `true` while the key list is on screen.
     #[must_use]
-    pub const fn can_step_back(&self) -> bool {
-        self.history.len() > 1
+    pub const fn help_visible(&self) -> bool {
+        self.help_visible
     }
 
     /// Replaces the single source the next [`Intent::Reload`] will use.
@@ -97,7 +99,7 @@ impl AppState {
 
     /// The active error overlay, when one is pending.
     #[must_use]
-    pub const fn error_overlay(&self) -> Option<&ErrorOverlay> {
+    pub const fn error_overlay(&self) -> Option<&Diagnostic> {
         self.error_overlay.as_ref()
     }
 
@@ -126,7 +128,7 @@ impl AppState {
     /// Applies a user intent to the state.
     ///
     /// Runtime errors from the dialogue runner are caught internally and
-    /// converted into an [`ErrorOverlay`]; they are never propagated to the
+    /// converted into a [`Diagnostic`]; they are never propagated to the
     /// caller.  Inspect [`AppState::is_errored`] or
     /// [`AppState::error_overlay`] after this call if you need to react to
     /// runner failures.
@@ -142,7 +144,11 @@ impl AppState {
                     }
                 }
             }
+            // `Esc`/`q` dismisses the key list first: the user who opened it
+            // to find the quit key should not quit by trying to close it.
+            Intent::Quit if self.help_visible => self.help_visible = false,
             Intent::Quit => self.quit_requested = true,
+            Intent::ToggleHelp => self.help_visible = !self.help_visible,
             Intent::FocusNext => self.move_focus(FocusShift::Next),
             Intent::FocusPrev => self.move_focus(FocusShift::Prev),
             Intent::SelectOption(idx) => self.run_commit(idx),
@@ -150,7 +156,7 @@ impl AppState {
             Intent::ScrollUp => self.transcript.scroll_up(),
             Intent::ScrollDown => self.transcript.scroll_down(),
             Intent::Reload => self.reload(),
-            Intent::Rerun => self.do_rerun(),
+            Intent::Rerun => self.rerun(),
             Intent::DismissError => self.error_overlay = None,
             Intent::StepBack => self.step_back(),
         }
@@ -171,39 +177,9 @@ impl AppState {
         }
     }
 
-    fn step_back(&mut self) {
-        if !self.can_step_back() {
-            return;
-        }
-        let mut history = std::mem::take(&mut self.history);
-        history.pop();
-        self.reset_runtime_state();
-        self.recording = false;
-        for step in &history {
-            match *step {
-                HistoryStep::Advance => self.guarded(Self::advance),
-                HistoryStep::SelectOption(i) => self.guarded(|s| s.commit_option(i)),
-            }
-        }
-        self.recording = true;
-        self.history = history;
-    }
-
-    fn reset_runtime_state(&mut self) {
-        match Session::from_source_set(&self.sources, &self.start_node) {
-            Ok(session) => {
-                self.session = Some(session);
-                self.error_overlay = None;
-            }
-            Err(err) => self.fail(&err),
-        }
-        self.transcript = Transcript::new();
-        self.clear_prompt();
-    }
-
-    /// Tears down the session and raises an [`ErrorOverlay`] for `err`.
+    /// Tears down the session and raises a [`Diagnostic`] for `err`.
     pub(super) fn fail(&mut self, err: &DialogueError) {
-        self.error_overlay = Some(ErrorOverlay::from_error(
+        self.error_overlay = Some(Diagnostic::from_error(
             err,
             self.sources.source_for_error(err),
         ));
@@ -298,24 +274,5 @@ impl AppState {
             .push(TranscriptEntry::OptionChosen { text, index });
         self.clear_prompt();
         Ok(())
-    }
-
-    fn reload(&mut self) {
-        self.reset_runtime_state();
-        self.history.clear();
-    }
-
-    fn do_rerun(&mut self) {
-        let result = self.session.as_mut().map(|s| s.rerun(&self.start_node));
-
-        match result {
-            Some(Ok(())) => self.error_overlay = None,
-            Some(Err(err)) => self.fail(&err),
-            // No active session (compile error on load) - full reload.
-            None => self.reset_runtime_state(),
-        }
-        self.transcript = Transcript::new();
-        self.clear_prompt();
-        self.history.clear();
     }
 }

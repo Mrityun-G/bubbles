@@ -12,7 +12,9 @@ pub enum Intent {
     /// Advance to the next line.  When an option set is currently showing,
     /// this commits the focused option instead.
     Advance,
-    /// Quit the application (the binary exits; no-op in tests).
+    /// Quit the application (the binary exits; no-op in tests).  When the key
+    /// list is open this closes it instead, so `Esc` never ends a session the
+    /// user only meant to read the help for.
     Quit,
     /// Move option focus (or transcript view) down, wrapping at the end.
     FocusNext,
@@ -30,7 +32,12 @@ pub enum Intent {
     /// Re-read the source files from disk, recompile, and start fresh at the
     /// stored node.  All runtime state (variables, once-seen flags, history)
     /// is wiped.  Use this after editing a `.bub` file to pick up your changes.
+    ///
+    /// This is the only destructive verb, so the binary puts it on `Ctrl+R`
+    /// rather than on a letter that a stray shift could reach.
     Reload,
+    /// Show or hide the key list.
+    ToggleHelp,
     /// Hide the active error overlay without reloading.  The underlying
     /// session stays as-is (i.e. still unusable if the error killed it).
     DismissError,

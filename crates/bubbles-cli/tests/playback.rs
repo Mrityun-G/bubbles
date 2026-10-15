@@ -1,7 +1,7 @@
 //! Playback-model tests: drive `AppState` through `Intent`s with no terminal
 //! involved - the whole point of the model/view split.
 
-use bubbles_tui::{AppState, Intent};
+use bubbles_cli::{AppState, Intent};
 
 const ONE_LINE: &str = "title: A\n---\nHi.\n===\n";
 const SPEAKER_LINE: &str = "title: A\n---\nAlice: Hi.\n===\n";

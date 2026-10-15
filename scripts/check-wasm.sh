@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ensure the bubbles-dialogue library stays buildable on wasm32-unknown-unknown.
 # We use --lib only: dev-dependencies (e.g. proptest) are not wasm-clean, and
-# the bubbles-tui binary deliberately targets native terminals, not wasm.
+# the bubbles-cli binary deliberately targets native terminals, not wasm.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

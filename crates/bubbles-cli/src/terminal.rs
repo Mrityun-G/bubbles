@@ -9,7 +9,7 @@ use std::io::{self, Stdout, Write as _};
 use std::time::Duration;
 
 use crossterm::ExecutableCommand as _;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
@@ -69,7 +69,19 @@ pub fn next_intent() -> io::Result<Option<Intent>> {
     }
 }
 
-const fn key_to_intent(key: KeyEvent) -> Option<Intent> {
+/// Maps a key press to an [`Intent`], or `None` for keys we do not bind.
+///
+/// Every letter is case-insensitive.  [`Intent::Reload`] is the one verb that
+/// throws runtime state away, so it is deliberately not on a letter at all:
+/// it takes `Ctrl+R` or `F5`, neither of which a mistyped shift can reach.
+#[must_use]
+pub const fn key_to_intent(key: KeyEvent) -> Option<Intent> {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        return match key.code {
+            KeyCode::Char('r' | 'R') => Some(Intent::Reload),
+            _ => None,
+        };
+    }
     match key.code {
         KeyCode::Enter | KeyCode::Char(' ') => Some(Intent::Advance),
         KeyCode::Esc | KeyCode::Char('q' | 'Q') => Some(Intent::Quit),
@@ -78,9 +90,10 @@ const fn key_to_intent(key: KeyEvent) -> Option<Intent> {
         KeyCode::Up | KeyCode::Char('k' | 'K') => Some(Intent::FocusPrev),
         KeyCode::PageUp => Some(Intent::ScrollUp),
         KeyCode::PageDown => Some(Intent::ScrollDown),
-        KeyCode::Char('r') => Some(Intent::Reload),
-        KeyCode::Char('R') => Some(Intent::Rerun),
+        KeyCode::F(5) => Some(Intent::Reload),
+        KeyCode::Char('r' | 'R') => Some(Intent::Rerun),
         KeyCode::Char('x' | 'X') => Some(Intent::DismissError),
+        KeyCode::Char('?') => Some(Intent::ToggleHelp),
         KeyCode::Backspace | KeyCode::Char('b' | 'B') => Some(Intent::StepBack),
         KeyCode::Char(c @ '1'..='9') => Some(Intent::SelectOption((c as usize) - ('1' as usize))),
         _ => None,

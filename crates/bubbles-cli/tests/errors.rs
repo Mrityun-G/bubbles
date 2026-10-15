@@ -2,7 +2,7 @@
 //! flow.
 
 use bubbles::{DialogueError, HashMapStorage, Runner, compile};
-use bubbles_tui::{AppState, ErrorOverlay, Intent, render};
+use bubbles_cli::{AppState, Diagnostic, Intent, render};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 
@@ -111,14 +111,14 @@ fn error_overlay_is_drawn_on_top_of_the_dialogue_pane() {
     );
 }
 
-// ── ErrorOverlay::from_error - one test per DialogueError variant ─────────────
+// ── Diagnostic::from_error - one test per DialogueError variant ─────────────
 //
 // These drive the overlay directly from constructed errors so every match arm
 // in overlay.rs is exercised even when a particular error path is hard to
 // trigger end-to-end.
 
-fn overlay(err: &DialogueError) -> ErrorOverlay {
-    ErrorOverlay::from_error(err, None)
+fn overlay(err: &DialogueError) -> Diagnostic {
+    Diagnostic::from_error(err, None)
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn from_error_parse_with_source_attaches_excerpt() {
         line: 3,
         message: "unexpected token".into(),
     };
-    let o = ErrorOverlay::from_error(&err, Some(source));
+    let o = Diagnostic::from_error(&err, Some(source));
     assert!(
         o.excerpt.is_some(),
         "expected excerpt for a parse error with source"
@@ -232,7 +232,7 @@ fn from_error_parse_without_source_has_no_excerpt() {
         line: 3,
         message: "unexpected token".into(),
     };
-    let o = ErrorOverlay::from_error(&err, None);
+    let o = Diagnostic::from_error(&err, None);
     assert!(o.excerpt.is_none());
 }
 
@@ -243,7 +243,7 @@ fn location_string_formats_file_and_line() {
         line: 7,
         message: "oops".into(),
     };
-    let o = ErrorOverlay::from_error(&err, None);
+    let o = Diagnostic::from_error(&err, None);
     assert_eq!(o.location_string().as_deref(), Some("dialogue.bub:7"));
 }
 
@@ -285,7 +285,7 @@ fn protocol_violation_in_runner_populates_overlay() {
         matches!(err, DialogueError::ProtocolViolation(_)),
         "expected ProtocolViolation, got: {err:?}"
     );
-    let o = ErrorOverlay::from_error(&err, None);
+    let o = Diagnostic::from_error(&err, None);
     assert!(
         o.title.to_lowercase().contains("protocol"),
         "got {:?}",
