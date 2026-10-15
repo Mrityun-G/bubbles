@@ -46,6 +46,8 @@ are not published to crates.io.
   carrying a `"title"` field; the runtime emits `"node"`. The header also
   claimed `bubbles_runner_set_locale_json` merges into the existing locale
   table, when it replaces it. Both would have misled a host author.
+- The guide's API index listed only two of the three shipped saliency
+  strategies; `RandomAvailable` is now linked alongside them.
 - `LICENSE-APACHE` now contains the full Apache License 2.0 text. It previously
   held only the short "how to apply the license" boilerplate notice, so the
   repository referenced Apache-2.0 without shipping its terms, and GitHub's
