@@ -81,7 +81,7 @@
 //! |--------|----------|
 //! | [`value`] | [`Value`], [`VariableStorage`], [`HashMapStorage`] |
 //! | [`compiler`] | [`compile`], [`compile_many`], [`validate`], [`Program`], [`VariableDecl`] |
-//! | [`runtime`] | [`Runner`], [`RunnerPhase`], [`DialogueEvent`], [`LineMode`], [`LineProvider`], [`line_id_from_tags`], [`line_mode_from_tags`], [`RunnerSnapshot`] |
+//! | [`runtime`] | [`Runner`], [`RunnerPhase`], [`DialogueEvent`], [`LineMode`], [`LineProvider`], [`line_id_from_tags`], [`line_mode_from_tags`], [`RunnerSnapshot`], [`DialogueRng`], [`RngState`] |
 //! | [`library`] | [`FunctionLibrary`] and built-in functions |
 //! | [`saliency`] | [`SaliencyStrategy`], [`FirstAvailable`], [`BestLeastRecentlyViewed`], `RandomAvailable` (`rand` feature) |
 //!
@@ -111,9 +111,9 @@ pub use library::FunctionLibrary;
 pub use runtime::RunnerSnapshot;
 #[doc(inline)]
 pub use runtime::{
-    DialogueEvent, DialogueOption, HashMapProvider, LineMode, LineProvider, MarkupSpan,
-    PassthroughProvider, Runner, RunnerBuilder, RunnerPhase, line_id_from_tags,
-    line_mode_from_tags, option_group_from_tags,
+    DialogueEvent, DialogueOption, DialogueRng, HashMapProvider, LineMode, LineProvider,
+    MarkupSpan, PassthroughProvider, RngState, Runner, RunnerBuilder, RunnerPhase,
+    line_id_from_tags, line_mode_from_tags, option_group_from_tags,
 };
 #[cfg(feature = "rand")]
 #[doc(inline)]
