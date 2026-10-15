@@ -135,6 +135,8 @@ Bubbles sits in the same space as [Yarn Spinner](https://yarnspinner.dev) and [I
 
 The full guide - language reference, integration walkthrough, localisation, save/load, WebAssembly, and annotated examples - lives at **<https://viezevingertjes.github.io/bubbles/>**.
 
+Release history, including the breaking changes in 1.0.0 and 2.0.0, is in [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## Projects using Bubbles
@@ -145,16 +147,26 @@ The full guide - language reference, integration walkthrough, localisation, save
 
 ## Contributing
 
-All changes to `main` go through a **pull request** (no direct pushes). These status checks must pass before merge:
+Contributions of every size are welcome, including documentation and typo fixes.
 
-| Check | Source |
-|-------|--------|
-| `ci` | GitHub Actions (format, clippy, tests, docs, …) |
-| `msrv` | GitHub Actions (MSRV compile) |
+```bash
+git clone https://github.com/ViezeVingertjes/bubbles
+cd bubbles
+cargo test --all-features
+```
 
-The branch must be **up to date** with `main` before merge. Conversation threads on the PR must be resolved. Force-push and branch deletion on `main` are blocked.
+Good places to start:
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and code quality gates.
+- Issues labelled [`good first issue`](https://github.com/ViezeVingertjes/bubbles/labels/good%20first%20issue) — scoped to an evening, with the file to edit named in the issue
+- A confusing passage in the [guide](https://viezevingertjes.github.io/bubbles/) — the source is in `book/src/`, and a wording fix needs no tests
+- A bug you hit — a minimal `.bub` reproduction is the most useful report there is
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the quality gates, and how much
+process applies to which kind of change (a typo fix needs very little). Commits
+need a [DCO](DCO) sign-off — `git commit -s` adds it.
+
+Changes land on `main` through pull requests, with CI and MSRV checks required.
+Draft PRs are welcome if you want feedback before a change is finished.
 
 ---
 

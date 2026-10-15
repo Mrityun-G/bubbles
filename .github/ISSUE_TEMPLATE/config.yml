@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the guide
+    url: https://viezevingertjes.github.io/bubbles/
+    about: Language reference, integration walkthrough, localisation, and save/load.
+  - name: API documentation
+    url: https://docs.rs/bubbles-dialogue
+    about: Generated rustdoc for the published crate.
+  - name: Report a security vulnerability
+    url: https://github.com/ViezeVingertjes/bubbles/security/advisories/new
+    about: Please report vulnerabilities privately rather than in a public issue.

@@ -34,7 +34,14 @@ This Code of Conduct applies within all project spaces and also applies when an 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behaviour may be reported to the project maintainers. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behaviour can be reported to the project maintainer, [@ViezeVingertjes](https://github.com/ViezeVingertjes), by one of:
+
+* GitHub's [private vulnerability reporting form](https://github.com/ViezeVingertjes/bubbles/security/advisories/new) for this repository, which is a private channel the maintainer receives directly (it is labelled for security reports, but it works for conduct reports and keeps the contents private)
+* A direct message on GitHub
+
+All complaints will be reviewed and investigated promptly and fairly. The maintainer will respect the privacy and security of the reporter.
+
+If the report concerns the maintainer, or you would rather not go through the maintainer at all, you can report the account or repository to [GitHub Support](https://support.github.com/contact/report-abuse), which can act independently of this project.
 
 ## Attribution
 
