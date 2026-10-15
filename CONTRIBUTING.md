@@ -1,6 +1,6 @@
 # Contributing to bubbles
 
-Contributions of every size are welcome — typo fixes, documentation, tests, bug
+Contributions of every size are welcome: typo fixes, documentation, tests, bug
 reports, and code. You do not need to be an experienced Rust developer to help
 here, and you do not need permission to start.
 
@@ -21,7 +21,7 @@ here, and you do not need permission to start.
   before writing code, so we can agree on the shape before you invest the time.
 
 Small pull requests are easier to review and land faster than large ones. If you
-are unsure whether something is worth doing, open an issue and ask — a short
+are unsure whether something is worth doing, open an issue and ask. A short
 question is never a nuisance.
 
 ## How much process applies to your change?
@@ -61,9 +61,13 @@ cargo run -p bubbles-tui -- examples/harbour/harbour.bub examples/harbour/servic
 bash scripts/install-hooks.sh
 ```
 
-The hook runs the same gates as CI before each commit, which saves a round trip
-through a red CI run. It needs **`jq`** on your `PATH`. It is genuinely optional
-— if you would rather let CI tell you, that is fine.
+The hook runs most of the gates before each commit: version sync, formatting,
+clippy (with and without default features), rustdoc, and file sizes. That
+catches a red CI run before you push it. It does not run the rest of CI: the
+test suite, the WebAssembly build, the sign-off check, the dependency audit,
+the .NET FFI smoke test, and the MSRV build. A clean commit is still not a
+promise of green CI. It needs **`jq`** on your `PATH`, and it is genuinely
+optional: if you would rather let CI tell you, that is fine.
 
 ## Sign your commits (DCO)
 
@@ -87,7 +91,7 @@ tells you how to fix it if it is missing. You can also check before pushing:
 bash scripts/check-dco.sh
 ```
 
-If you forget, nothing is lost — amend the last commit with
+If you forget, nothing is lost: amend the last commit with
 `git commit --amend -s --no-edit`, or sign off a whole branch with
 `git rebase --signoff origin/main`, then push with `--force-with-lease`.
 
@@ -107,7 +111,7 @@ docs: add doc tests for Program::variable_declarations
 ```
 
 Types in use: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`.
-If you get the prefix wrong, a reviewer will suggest the right one — it is not a
+If you get the prefix wrong, a reviewer will suggest the right one. It is not a
 reason to reject a change.
 
 ## The quality gates
@@ -150,15 +154,18 @@ you. These lint sets are opinionated and occasionally wrong.
 **If a lint is telling you to make the code worse, say so in the pull request.**
 We would rather discuss one lint than have you contort a clean patch around it.
 Adding a scoped `#[allow(...)]` with a comment explaining why is a legitimate
-outcome — but ask first rather than scattering them, since the codebase
-currently has none.
+outcome, but ask first rather than scattering them. The few already in `src/`
+are all narrow: two float-to-integer casts in the random built-ins, each
+followed by a checked conversion; `multiple_crate_versions` at the top of the
+TUI crate; and one unreachable match arm that keeps the C ABI
+forward-compatible.
 
 ### About the 300-line file cap
 
 `scripts/check-file-sizes.sh` fails if any file matching `crates/*/src/**/*.rs`
 exceeds 300 non-blank lines. **Integration tests under `crates/*/tests/` are not
-covered** — write as much test code there as the change needs. Unit-test files do
-count, because they live beside the code in `src/` (for example
+covered**, so write as much test code there as the change needs. Unit-test
+files do count, because they live beside the code in `src/` (for example
 `src/library/library_tests/`), so those get split into submodules as they grow.
 
 It is a prompt to split a file along a concept boundary, not a quality bar you
@@ -169,7 +176,7 @@ is a reasonable thing to want a second opinion on.
 The conventions behind it:
 
 - One concept per file. No `utils.rs`, `helpers.rs`, or `common.rs` catch-alls in
-  `src/`. (`tests/common/mod.rs` is a deliberate exception — it is the shared
+  `src/`. (`tests/common/mod.rs` is a deliberate exception: it is the shared
   integration-test harness.)
 - `mod.rs` files stay thin: declare submodules, re-export the public surface.
 
@@ -178,8 +185,8 @@ The conventions behind it:
 New behaviour needs a test. Integration tests live in
 `crates/bubbles-dialogue/tests/` and drive the public API the way a game would.
 
-Writing the failing test first is a habit worth having — it proves the test
-actually exercises the bug — but we care about the test existing and failing
+Writing the failing test first is a habit worth having, since it proves the
+test actually exercises the bug, but we care about the test existing and failing
 without your fix, not the order you typed things in. If you have a fix and are
 stuck on how to test it, open a draft PR and ask.
 
@@ -209,7 +216,7 @@ cargo +nightly fuzz run compile_bub fuzz/corpus/compile_bub -- -max_total_time=6
 ## Pull requests
 
 All changes reach `main` through a pull request. Open it as a **draft** if you
-want early feedback on an unfinished change — that is encouraged, not a sign of
+want early feedback on an unfinished change. That is encouraged, not a sign of
 weakness.
 
 - [ ] Commits are signed off (`git commit -s`)
