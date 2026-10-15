@@ -14,7 +14,7 @@ fn markup_span_to_json(span: &MarkupSpan) -> Value {
 
 /// Serializes a runtime event to a JSON object string for the C ABI.
 #[must_use]
-pub(crate) fn dialogue_event_to_json(ev: &DialogueEvent) -> String {
+pub fn dialogue_event_to_json(ev: &DialogueEvent) -> String {
     match ev {
         DialogueEvent::NodeStarted(node) => json!({
             "kind": "NodeStarted",
