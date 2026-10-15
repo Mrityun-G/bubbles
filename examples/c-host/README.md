@@ -101,7 +101,7 @@ understands the fields this example reads.
 
 - [C ABI stability policy](../../crates/bubbles-ffi/ABI.md) — the full event JSON schema,
   ownership rules, threading constraints, and what is allowed to change between releases.
-- [Unity and native hosts](https://viezevingertjes.github.io/bubbles/integration/unity-and-native.html)
+- [Native hosts (C ABI)](https://viezevingertjes.github.io/bubbles/integration/native-hosts.html)
   — the same ground in C#, plus host functions, localisation, variables, and save/load.
 - `crates/bubbles-ffi/tests/dotnet_smoke/` — a .NET 10 P/Invoke host that exercises the
   features this example leaves out.

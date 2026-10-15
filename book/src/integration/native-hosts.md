@@ -1,6 +1,8 @@
-# Unity and native hosts (C ABI)
+# Native hosts (C ABI)
 
-`bubbles-ffi` is a shared library with a C ABI for driving `.bub` dialogue from C#, C++, or any language that can load a native plugin. Unity's `DllImport`, .NET P/Invoke, and Godot .NET all work.
+The Rust API is the primary way to use Bubbles, and the one the rest of this guide describes. This chapter covers the other case: a host that cannot link Rust directly.
+
+`bubbles-ffi` is a shared library with a C ABI for driving `.bub` dialogue from C, C++, C#, or any language that can load a native plugin. Unity's `DllImport`, .NET P/Invoke, and Godot .NET all work.
 
 Every symbol is declared in [`include/bubbles_ffi.h`](https://github.com/ViezeVingertjes/bubbles/blob/main/crates/bubbles-ffi/include/bubbles_ffi.h), which carries its own ABI and library version. Events come back as JSON strings; everything else uses UTF-8 byte slices.
 
@@ -290,44 +292,17 @@ See [Save and Load](../advanced/save-load.md) for why order matters and what eac
 
 ## Platform reach
 
-CI builds and ships Windows x64, macOS x64, macOS arm64, and Linux x64. The three platforms people ask about next land very differently.
+Releases carry Windows x64, macOS x64, macOS arm64, and Linux x64. Nothing in this crate is platform-specific, so other targets are expected to build from source with no code or ABI changes - they are simply not built or tested by CI. That is usually just:
 
-### Android - same approach, CI work only
-
-Reachable with no code or ABI changes. Rust has tier-2 targets for every Android ABI (`aarch64-linux-android`, `armv7-linux-androideabi`, `x86_64-linux-android`, `i686-linux-android`), and each produces an ordinary `.so` that Unity loads from `Assets/Plugins/Android/libs/<abi>/`. Your existing `DllImport("bubbles_ffi")` declarations work unchanged.
-
-**Cost:** the Android NDK on the runner (`cargo-ndk` handles the linker plumbing) and four more matrix entries. No changes to this crate. The main decision is which ABIs to ship, since each one multiplies APK size.
-
-### iOS - same ABI, but it must be a static library
-
-Reachable, with one real change: Unity's iOS pipeline links native code into the app binary via IL2CPP, so it needs a **static** library, not a `cdylib`. That means adding `staticlib` to `crate-type` and building `aarch64-apple-ios` plus a simulator target.
-
-The consequence lands in *your* bindings, not in the ABI: statically linked symbols are looked up in the host image, so iOS needs
-
-```csharp
-#if UNITY_IOS && !UNITY_EDITOR
-    const string Dll = "__Internal";
-#else
-    const string Dll = "bubbles_ffi";
-#endif
+```sh
+cargo build -p bubbles-ffi --release --target <triple>
 ```
 
-Every function signature, status code, and JSON shape in this chapter stays identical.
+Android is the straightforward case: every Android ABI has a tier-2 Rust target and each produces an ordinary `.so` that a native plugin loader picks up, with your existing declarations unchanged. iOS is the awkward one, because pipelines that link native code into the app binary need a **static** library rather than a `cdylib`, which means a `staticlib` crate type and a change to how your bindings name the library. Neither is shipped today. If you need one, open an issue describing the host - it is CI and packaging work, not an ABI change.
 
-**Cost:** one line in `Cargo.toml` (which lengthens every platform's build and adds a large `.a` to `target/`), two or three macOS matrix entries, the conditional binding above, and - for non-Unity consumers - an XCFramework if you want Xcode to consume it idiomatically. Moderate, and mostly one-time.
+### WebAssembly goes somewhere else
 
-### WebAssembly - reachable, but not through this ABI
-
-The dialogue runtime itself runs on `wasm32-unknown-unknown` today and CI keeps it that way; see [WebAssembly](../advanced/wasm.md). But it will not arrive through *this* header, for two reasons:
-
-1. `wasm32-unknown-unknown` has no notion of a C shared library to `DllImport`. You get a module whose exports JavaScript calls directly.
-2. This ABI's shape - opaque handles, caller-frees-strings, thread-local error slots, raw function-pointer callbacks - maps badly onto JS. `wasm-bindgen` with a JS-idiomatic surface is the right design, not a C header.
-
-**Cost:** a separate crate with its own API and its own stability policy, not a matrix entry on this one. The [WebAssembly chapter](../advanced/wasm.md) shows the `wasm-bindgen` façade to write in the meantime, which is a short file.
-
-### Anything else
-
-There is no platform-specific code in this crate, so other targets are expected to work - they are simply not built or tested by CI. Building from source for an untested target is usually just `cargo build -p bubbles-ffi --release --target <triple>`.
+The dialogue runtime runs on `wasm32-unknown-unknown` today and CI keeps it that way, but it does not arrive through *this* header. `wasm32-unknown-unknown` has no notion of a C shared library to load: you get a module whose exports JavaScript calls directly. And this ABI's shape - opaque handles, caller-frees-strings, thread-local error slots, raw function-pointer callbacks - maps badly onto JS, where `wasm-bindgen` and a JS-idiomatic surface are the right design. The [WebAssembly chapter](../advanced/wasm.md) covers that path, including the short `wasm-bindgen` façade to write today.
 
 ## Still Rust-only
 

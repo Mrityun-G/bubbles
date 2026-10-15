@@ -342,7 +342,7 @@ Prebuilt binaries are produced by the `ffi-prebuilt` workflow for:
 
 Other targets are expected to work — there is no platform-specific code in this crate — but
 are not built or tested by CI. See
-[the Unity and native hosts chapter](https://viezevingertjes.github.io/bubbles/integration/unity-and-native.html)
+[the native hosts chapter](https://viezevingertjes.github.io/bubbles/integration/native-hosts.html)
 for notes on iOS, Android, and WebAssembly.
 
 Linux binaries are built on the oldest GitHub-hosted Ubuntu runner available and link glibc

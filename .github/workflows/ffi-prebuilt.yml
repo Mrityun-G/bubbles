@@ -245,7 +245,7 @@ jobs:
           | Linux x64 | `*-x86_64-unknown-linux-gnu.tar.gz` (glibc 2.35+) |
 
           Verify downloads against `SHA256SUMS.txt`. To get started, see
-          [Unity and native hosts](https://viezevingertjes.github.io/bubbles/integration/unity-and-native.html)
+          [Native hosts (C ABI)](https://viezevingertjes.github.io/bubbles/integration/native-hosts.html)
           or the dependency-free `examples/c-host/` in the repository.
           EOF
 

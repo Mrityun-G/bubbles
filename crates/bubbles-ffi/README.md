@@ -59,5 +59,5 @@ without loading a shared library; it is not a supported Rust interface.
 
 P/Invoke declarations, host functions, localisation, variables, save/load, the .NET smoke
 test, and notes on iOS, Android, and WebAssembly are in the
-[Unity and native hosts](https://viezevingertjes.github.io/bubbles/integration/unity-and-native.html)
+[Native hosts (C ABI)](https://viezevingertjes.github.io/bubbles/integration/native-hosts.html)
 chapter of the guide.
