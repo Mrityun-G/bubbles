@@ -32,6 +32,13 @@ jobs:
       - name: Test (no default features, bubbles-dialogue)
         run: cargo test -p bubbles-dialogue --no-default-features
 
+      # `serde` without `rand` is its own code path: snapshots carry the random
+      # stream whether or not the random built-ins are compiled in, so the
+      # stream has to serialise and restore with no `rand` in the tree. Neither
+      # of the two steps above builds that combination.
+      - name: Test (serde without rand, bubbles-dialogue)
+        run: cargo test -p bubbles-dialogue --no-default-features --features serde
+
       # `bubbles check` is the verb meant to live in other people's CI, and the reason it
       # is worth adding there is that `--no-default-features` drops the terminal UI. Build
       # and test that configuration so the checker cannot start depending on the player.

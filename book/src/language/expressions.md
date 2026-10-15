@@ -74,21 +74,34 @@ String concatenation uses `+` - both sides must be strings. See [Variables](./va
 | `random_range(lo, hi)` | uniform int in `[lo, hi]` inclusive |
 | `dice(sides, count)` | sum of `count` rolls of a `sides`-sided die |
 
+All three draw from the runner's own generator. Build the runner with [`RunnerBuilder::with_seed`](https://docs.rs/bubbles-dialogue/latest/bubbles/struct.RunnerBuilder.html#method.with_seed) and the same script replays the same rolls every time - which is what makes replays, lockstep, and server-authoritative dialogue work with dice in them. Without a seed they draw from the operating system, as you would expect.
+
 ### Narrative helpers
 
 | Function | Returns |
 |---|---|
 | `visited(node)` | `true` once you've run the named node at least once |
 | `visited_count(node)` | how many times the node has completed |
+
+### Text shaping
+
+| Function | Returns |
+|---|---|
 | `plural(n, sing, plur)` | `sing` if `|n| == 1`, else `plur` |
 | `select(key, "k1:text\|k2:text\|other:fallback")` | picks a branch by key |
-
-`plural` and `select` are handy for localisation and gender-aware dialogue (see [Localisation](../integration/localisation.md)):
 
 ```text
 You found {$n} {plural($n, "gem", "gems")}.
 {select($gender, "m:He|f:She|other:They")} nods.
 ```
+
+Both are easy to over-trust, so here are the limits.
+
+**`plural` implements one two-form rule.** It returns the singular form when `|n|` is 1 and the plural form for everything else, 0 included. That is correct for English and for languages that happen to share its shape, and wrong for the rest: Polish, Russian, Czech and Arabic have three to six plural categories, and French uses the singular for 0. It is a shaping helper for your source language, not internationalisation.
+
+If you need a rule for a language with other plural categories, write it and register it under the same name - [`FunctionLibrary::register`](https://docs.rs/bubbles-dialogue/latest/bubbles/struct.FunctionLibrary.html#method.register) replaces the built-in, exactly as it does when you swap a seeded generator in for `random`. See [Custom Functions](../integration/functions.md).
+
+**`select` has no escape mechanism.** The mapping is split on `|`, then each entry at its first `:`. Nothing escapes either separator, so a key containing `|` or `:` can never be matched, and a value containing `|` cannot be expressed at all. A value *may* contain colons - `"time:12:00|other:??"` returns `12:00` - because only the first colon in an entry separates. The mapping string is re-parsed on every call.
 
 ## Your own functions
 

@@ -22,6 +22,7 @@ include = [
     "README.md",
     "tests/smoke.rs",
     "tests/header.rs",
+    "tests/contract.rs",
 ]
 
 [lib]
