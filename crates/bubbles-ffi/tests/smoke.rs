@@ -7,14 +7,16 @@
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 
 use bubbles_ffi::{
-    BUBBLES_DONE, BUBBLES_ERR, BUBBLES_OK, BUBBLES_SALIENCY_BLRV, bubbles_compile,
-    bubbles_copy_utf8, bubbles_program_node_exists, bubbles_program_node_titles_json,
+    BUBBLES_DONE, BUBBLES_ERR, BUBBLES_OK, BUBBLES_SALIENCY_BLRV,
+    BUBBLES_SALIENCY_RANDOM_AVAILABLE, bubbles_compile, bubbles_copy_utf8,
+    bubbles_program_node_exists, bubbles_program_node_titles_json,
     bubbles_program_variable_declarations_json, bubbles_runner_free, bubbles_runner_new,
-    bubbles_runner_new_with_saliency, bubbles_runner_next_event, bubbles_runner_register_function,
-    bubbles_runner_restore_session_json, bubbles_runner_restore_storage_json,
-    bubbles_runner_set_locale_json, bubbles_runner_snapshot_session_json,
-    bubbles_runner_snapshot_storage_json, bubbles_runner_start, bubbles_runner_variable_get_json,
-    bubbles_runner_variable_set_json, bubbles_string_free,
+    bubbles_runner_new_seeded, bubbles_runner_new_with_saliency, bubbles_runner_next_event,
+    bubbles_runner_register_function, bubbles_runner_restore_session_json,
+    bubbles_runner_restore_storage_json, bubbles_runner_set_locale_json,
+    bubbles_runner_snapshot_session_json, bubbles_runner_snapshot_storage_json,
+    bubbles_runner_start, bubbles_runner_variable_get_json, bubbles_runner_variable_set_json,
+    bubbles_string_free,
 };
 
 const BASIC: &str = r"title: Start
@@ -33,6 +35,14 @@ NPC: done
 const WITH_LINE_ID: &str = r"title: L
 ---
 Shopkeep: Hello #line:greet
+===
+";
+
+/// Enough rolls that two seeds cannot coincidentally agree. `SplitMix64` is deterministic,
+/// so "cannot" here is exact rather than probabilistic.
+const WITH_DICE: &str = r"title: R
+---
+Narrator: {dice(6, 1)} {dice(6, 1)} {dice(6, 1)} {dice(6, 1)} {dice(6, 1)} {dice(6, 1)}
 ===
 ";
 
@@ -271,6 +281,83 @@ fn variable_set_json_round_trip() {
         bubbles_string_free(out);
         bubbles_runner_free(runner);
     }
+}
+
+/// Runs `WITH_DICE` to completion through the seeded constructor, returning every event's JSON.
+fn seeded_transcript(seed: u64) -> Vec<String> {
+    let mut program: *mut c_void = std::ptr::null_mut();
+    let src = CString::new(WITH_DICE).unwrap();
+    let rc = unsafe { bubbles_compile(src.as_ptr(), src.as_bytes().len(), &raw mut program) };
+    assert_eq!(rc, BUBBLES_OK, "compile failed");
+
+    let mut runner: *mut c_void = std::ptr::null_mut();
+    let rc = unsafe {
+        bubbles_runner_new_seeded(
+            program,
+            BUBBLES_SALIENCY_RANDOM_AVAILABLE,
+            seed,
+            &raw mut runner,
+        )
+    };
+    assert_eq!(rc, BUBBLES_OK, "seeded constructor failed");
+    assert!(!runner.is_null());
+
+    let node = CString::new("R").unwrap();
+    let rc = unsafe { bubbles_runner_start(runner, node.as_ptr(), node.as_bytes().len()) };
+    assert_eq!(rc, BUBBLES_OK);
+
+    let mut events = Vec::new();
+    loop {
+        let mut json_ptr: *mut c_char = std::ptr::null_mut();
+        let rc = unsafe { bubbles_runner_next_event(runner, &raw mut json_ptr) };
+        if rc == BUBBLES_DONE {
+            break;
+        }
+        assert_eq!(rc, BUBBLES_OK, "next_event failed");
+        events.push(
+            unsafe { CStr::from_ptr(json_ptr) }
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        );
+        unsafe { bubbles_string_free(json_ptr) };
+    }
+    unsafe { bubbles_runner_free(runner) };
+    events
+}
+
+#[test]
+fn seeded_runner_replays_identically() {
+    let first = seeded_transcript(7);
+    assert!(
+        first.iter().any(|e| e.contains(r#""kind":"Line""#)),
+        "expected a Line event, got {first:?}"
+    );
+    assert_eq!(
+        first,
+        seeded_transcript(7),
+        "the same seed must replay the same session"
+    );
+    assert_ne!(
+        first,
+        seeded_transcript(8),
+        "a different seed must produce a different session, or the seed is being ignored"
+    );
+}
+
+/// The seeded path validates `saliency_kind` exactly as the other constructors do, and
+/// consumes the program handle on that failure too - so there is nothing left to free.
+#[test]
+fn seeded_runner_rejects_an_invalid_saliency_kind() {
+    let mut program: *mut c_void = std::ptr::null_mut();
+    let src = CString::new(BASIC).unwrap();
+    let rc = unsafe { bubbles_compile(src.as_ptr(), src.as_bytes().len(), &raw mut program) };
+    assert_eq!(rc, BUBBLES_OK);
+
+    let mut runner: *mut c_void = std::ptr::null_mut();
+    let rc = unsafe { bubbles_runner_new_seeded(program, 99, 7, &raw mut runner) };
+    assert_eq!(rc, BUBBLES_ERR);
+    assert!(runner.is_null(), "out_runner must be untouched on error");
 }
 
 fn drain_until_line_or_done(runner: *mut c_void) {

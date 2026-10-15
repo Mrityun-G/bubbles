@@ -57,10 +57,18 @@ jobs:
         run: bash scripts/check-file-sizes.sh
 
       # bubbles-ffi is publishable, so keep it that way: this catches missing metadata, a
-      # file left out of `include`, or a path dependency without a version long before a
-      # release is cut.
+      # path dependency without a version, or a `include` list that does not package.
+      #
+      # `--no-verify` is required, not a shortcut. The verify step builds the packaged
+      # tarball against the *registry* copy of bubbles-dialogue, because publishing strips
+      # the `path` from a path+version dependency. The two crates are released together
+      # (RELEASING.md publishes bubbles-dialogue first), so between releases this crate
+      # legitimately calls bubbles-dialogue API that is not on crates.io yet, and the verify
+      # build cannot succeed no matter how the versions are arranged. The full dry-run,
+      # verification included, is a release step: it runs once bubbles-dialogue is published
+      # and the dependency is actually resolvable.
       - name: Publish dry-run (bubbles-ffi)
-        run: cargo publish --dry-run -p bubbles-ffi
+        run: cargo publish --dry-run -p bubbles-ffi --no-verify
 
       # Same reasoning for the CLI: it is published, so catch missing metadata or a path
       # dependency without a version here rather than at release time.

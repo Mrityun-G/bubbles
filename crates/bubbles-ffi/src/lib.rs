@@ -71,8 +71,8 @@ pub use program_ffi::{
 };
 pub use runner_config::{
     BUBBLES_SALIENCY_BLRV, BUBBLES_SALIENCY_FIRST_AVAILABLE, BUBBLES_SALIENCY_RANDOM_AVAILABLE,
-    BubblesHostFn, bubbles_runner_new_with_saliency, bubbles_runner_register_function,
-    bubbles_runner_set_locale_json, bubbles_runner_set_saliency,
+    BubblesHostFn, bubbles_runner_new_seeded, bubbles_runner_new_with_saliency,
+    bubbles_runner_register_function, bubbles_runner_set_locale_json, bubbles_runner_set_saliency,
 };
 pub use runner_ffi::{
     bubbles_runner_free, bubbles_runner_new, bubbles_runner_next_event,

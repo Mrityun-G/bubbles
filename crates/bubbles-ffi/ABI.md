@@ -38,7 +38,7 @@ Within a single ABI version, across any number of crate releases:
 ### Symbols and linkage
 
 - Every public entry point is `extern "C"`, unmangled, and named with a `bubbles_` prefix.
-- The 26 symbols declared in the header keep their names, parameter counts, parameter types,
+- The 27 symbols declared in the header keep their names, parameter counts, parameter types,
   and return types.
 - The calling convention is the platform C default (`cdecl` on x86, the standard AAPCS/SysV
   convention elsewhere). Declare it explicitly in managed hosts — `CallingConvention.Cdecl`
@@ -165,17 +165,17 @@ them is undefined behaviour, not merely untidy.
 | Host-fn result (`*out_result_json`) | your callback, via `bubbles_copy_utf8` | **library** — it frees it | do **not** free it yourself |
 | `bubbles_last_error()` result | library, thread-local | **library** | never free; copy before the next call |
 | `program` handle | `bubbles_compile`, `bubbles_compile_files` | caller | `bubbles_program_free`, **or** transfer to `bubbles_runner_new*` |
-| `runner` handle | `bubbles_runner_new`, `bubbles_runner_new_with_saliency` | caller | `bubbles_runner_free` |
+| `runner` handle | any `bubbles_runner_new*` constructor | caller | `bubbles_runner_free` |
 | Your input buffers | you | you | yours; the library never retains them past the call |
 
 Three consequences worth stating explicitly, because each is a real crash:
 
-1. **`bubbles_runner_new` and `bubbles_runner_new_with_saliency` consume the program handle.**
+1. **Every `bubbles_runner_new*` constructor consumes the program handle.**
    Precisely: the handle is consumed whenever both `program` and `out_runner` are non-NULL —
    on success *and* on a failure such as an invalid saliency kind. Since passing a NULL
    `out_runner` is a bug you should never ship, the practical rule is unconditional: after
-   calling either constructor, the program handle is gone. Never `bubbles_program_free` it,
-   never build a second runner from it, and null your copy at the call site.
+   calling any of the constructors, the program handle is gone. Never `bubbles_program_free`
+   it, never build a second runner from it, and null your copy at the call site.
 2. **Input pointers are borrowed for the duration of the call only.** The library copies what
    it needs. In a garbage-collected host you must pin inputs across the call (`GCHandle` in
    .NET) but you may release them immediately after it returns.
@@ -364,5 +364,10 @@ than memory corruption.
 
 ### Version 1 — `bubbles-ffi` 2.0.0
 
-Initial documented ABI. 26 symbols, three status codes, three saliency strategies, one
+Initial documented ABI. 27 symbols, three status codes, three saliency strategies, one
 `repr(C)` input struct, one callback type, and the event JSON schema above.
+
+`bubbles_runner_new_seeded` was the 27th symbol, added during 2.0.0's development to give
+native hosts the reproducible sessions `RunnerBuilder::with_seed` gives Rust ones. It needed
+no version bump: a new symbol is additive, and a host that never calls it is unaffected. It
+is recorded here as the worked example of what an additive change looks like.

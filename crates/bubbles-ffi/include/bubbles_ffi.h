@@ -181,8 +181,8 @@ int32_t bubbles_compile_files(const BubblesSourceFile *files, size_t file_count,
 /**
  * Frees a program handle from bubbles_compile / bubbles_compile_files. NULL is a no-op.
  *
- * Do NOT call this after passing the handle to bubbles_runner_new or
- * bubbles_runner_new_with_saliency - those consume it.
+ * Do NOT call this after passing the handle to any bubbles_runner_new* constructor -
+ * those consume it.
  */
 void bubbles_program_free(void *program);
 
@@ -217,6 +217,9 @@ int32_t bubbles_program_variable_declarations_json(void *program, char **out_jso
  *
  * CONSUMES `program`: after this call the program handle is gone, on success and on
  * failure alike. Do not free it and do not reuse it.
+ *
+ * Randomness is seeded from the OS. For a reproducible session use
+ * bubbles_runner_new_seeded.
  */
 int32_t bubbles_runner_new(void *program, void **out_runner);
 
@@ -227,6 +230,22 @@ int32_t bubbles_runner_new(void *program, void **out_runner);
  */
 int32_t bubbles_runner_new_with_saliency(void *program, int32_t saliency_kind,
                                          void **out_runner);
+
+/**
+ * Creates a runner whose randomness is seeded, making the session reproducible.
+ *
+ * Same program, same starting variables, same `seed`, same option selections gives the
+ * same sequence of events - every random(), random_range() and dice() result and every
+ * BUBBLES_SALIENCY_RANDOM_AVAILABLE choice - in every process and on every platform.
+ * Pass BUBBLES_SALIENCY_FIRST_AVAILABLE for the default strategy.
+ *
+ * There is no set_seed counterpart: a seed belongs to a session, so choose it here. A
+ * snapshot records where the stream had reached, so a restored save continues it.
+ *
+ * CONSUMES `program`, exactly as bubbles_runner_new does.
+ */
+int32_t bubbles_runner_new_seeded(void *program, int32_t saliency_kind, uint64_t seed,
+                                  void **out_runner);
 
 /** Frees a runner handle. NULL is a no-op. Always safe, including after an error. */
 void bubbles_runner_free(void *runner);
