@@ -10,7 +10,8 @@ const GAMMA: u64 = 0x9E37_79B9_7F4A_7C15;
 ///
 /// A snapshot stores one of these so [`Runner::restore`](crate::Runner::restore)
 /// continues the same random stream instead of starting a new one. The value is
-/// opaque: there is nothing to inspect and nothing to construct by hand, but it
+/// opaque: there is nothing to inspect, and the only value you can name is
+/// [`default`](Self::default) — the start of the stream for seed `0`. It
 /// serialises (with the `serde` feature) as a single integer, so save files stay
 /// small and compare byte-for-byte.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,15 +92,21 @@ impl DialogueRng {
 
     /// Creates a generator seeded from the operating system, as an unseeded
     /// [`Runner`](crate::Runner) does.
+    ///
+    /// Crate-internal: [`Default`] is the public spelling of the same thing.
     #[must_use]
-    pub fn from_entropy() -> Self {
+    pub(crate) fn from_entropy() -> Self {
         Self::from_seed(entropy_seed())
     }
 
     /// Restarts this generator's stream from `seed`.
     ///
-    /// Every handle sharing the stream observes the change.
-    pub fn reseed(&self, seed: u64) {
+    /// Every handle sharing the stream observes the change, which is why this is
+    /// crate-internal: a seed belongs to a session, and one participant quietly
+    /// restarting a shared stream mid-run is how a lockstep peer desynchronises.
+    /// [`RunnerBuilder::with_seed`](crate::RunnerBuilder::with_seed) is the only
+    /// way in, so a seeded session stays seeded.
+    pub(crate) fn reseed(&self, seed: u64) {
         *self.lock() = seed;
     }
 
@@ -111,7 +118,12 @@ impl DialogueRng {
     }
 
     /// Resumes the stream from a position captured by [`state`](Self::state).
-    pub fn set_state(&self, state: RngState) {
+    ///
+    /// Crate-internal, for the same reason as `reseed`:
+    /// [`Runner::restore`](crate::Runner::restore) moves a stream, and it does so
+    /// with the rest of the session state rather than on its own. Put the value
+    /// in [`RunnerSnapshot::rng`](crate::RunnerSnapshot::rng) and restore that.
+    pub(crate) fn set_state(&self, state: RngState) {
         *self.lock() = state.0;
     }
 
