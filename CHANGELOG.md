@@ -49,8 +49,9 @@ are not published to crates.io.
   *Upgrading:* struct literals need the extra field. Use
   `runner.rng().state()` to capture a live runner's position, or
   `RngState::default()` for a fixed starting stream. Snapshots written by 2.x
-  deserialise without it and fall back to a fresh OS-seeded stream, which is
-  exactly what those saves did before.
+  deserialise without it and fall back to whatever an unseeded runner would
+  have started from — a fresh OS-seeded stream with `rand`, the beginning of
+  the stream without it — which is exactly what those saves did before.
 
 - **`SaliencyStrategy::select` takes the runner's generator:**
   `fn select(&mut self, candidates: &[Candidate<'_>], rng: &DialogueRng) -> Option<usize>`.
@@ -74,7 +75,15 @@ are not published to crates.io.
   reached for the OS-seeded thread-local RNG with no way to influence them, so
   replay, lockstep, and server-authoritative dialogue were out of reach for any
   script that rolled dice. Runners built without a seed behave as before and
-  draw from the operating system.
+  draw from the operating system — except with `default-features = false`,
+  where there is no entropy source in the crate at all and an unseeded runner
+  starts at the beginning of the stream, so that build replays identically
+  whether or not you pass a seed. That is the `wasm32-unknown-unknown`
+  configuration, so in a browser `with_seed` is the only way to make a session
+  unpredictable. The crate deliberately does not improvise a seed there:
+  `SystemTime` aborts the module on that target, and `std`'s hash key is a
+  compile-time constant on it, so the two obvious substitutes are a crash and
+  a fixed number dressed up as entropy.
 - `DialogueRng` and `RngState`: the generator a runner draws from, and the
   stream position stored in a snapshot. `Runner::rng()` hands out a handle, so
   host functions registered through `library_mut()` can draw from the same
@@ -99,6 +108,12 @@ are not published to crates.io.
   and both licences, so a host needs no Rust toolchain.
 - `examples/c-host/`, a dependency-free C99 host that loads a `.bub` file, pumps
   the event loop, and selects an option. CI builds and runs it.
+- The WebAssembly gate in CI now instantiates a module and plays a script
+  through it, instead of only compiling the library for the target. A call that
+  diverges on `wasm32-unknown-unknown` compiles cleanly, and the optimiser is
+  then free to delete everything downstream of it — so the build goes green,
+  the artifact gets *smaller*, and the module traps on the first line of
+  dialogue. Compiling could not see that; running can.
 - `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
   and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
 

@@ -33,9 +33,9 @@ jobs:
         run: cargo test -p bubbles-dialogue --no-default-features
 
       # `serde` without `rand` is its own code path: snapshots carry the random
-      # stream whether or not the random built-ins are compiled in, so the seed
-      # comes from the standard library rather than from `rand`. Neither of the
-      # two steps above builds that combination.
+      # stream whether or not the random built-ins are compiled in, so the
+      # stream has to serialise and restore with no `rand` in the tree. Neither
+      # of the two steps above builds that combination.
       - name: Test (serde without rand, bubbles-dialogue)
         run: cargo test -p bubbles-dialogue --no-default-features --features serde
 
