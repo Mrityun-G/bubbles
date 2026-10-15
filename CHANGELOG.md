@@ -124,7 +124,11 @@ are not published to crates.io.
   the artifact gets *smaller*, and the module traps on the first line of
   dialogue. Compiling could not see that; running can.
 - `bubbles-ffi` is now publishable: it carries the metadata crates.io requires
-  and `cargo publish --dry-run` runs in CI. It remains unpublished for now.
+  and `cargo publish --dry-run --no-verify` runs in CI. Verification is a release
+  step rather than a CI one, because it builds the packaged tarball against the
+  registry copy of `bubbles-dialogue`, which between releases does not yet have
+  the API this crate calls; see [RELEASING.md](RELEASING.md). It remains
+  unpublished for now.
 
 ### Changed
 

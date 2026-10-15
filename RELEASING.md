@@ -8,6 +8,13 @@
 6. Run **`bash scripts/check-version-sync.sh`** (runs in **pre-commit** and in **CI**; it checks every item above).
 7. Tag the release (see **Publish** workflow: the tag must match the crate version).
 8. **`cargo publish -p bubbles-dialogue`**
+9. **`cargo publish --dry-run -p bubbles-ffi`** — with verification, which is only possible
+   now. CI runs this dry-run with `--no-verify` on every commit, because the verify step
+   builds the packaged tarball against the registry copy of `bubbles-dialogue` (publishing
+   strips the `path` from a path+version dependency), and between releases this crate
+   legitimately uses `bubbles-dialogue` API that is not on crates.io yet. Step 8 is what
+   makes the dependency resolvable, so this is the first moment the tarball can be compiled
+   as a consumer would get it. `bubbles-ffi` itself remains unpublished.
 
 Patch releases (`0.6.0` → `0.6.1`) follow the same steps; the book and README stay on the exact semver shown above.
 
