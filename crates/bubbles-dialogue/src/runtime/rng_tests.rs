@@ -116,9 +116,26 @@ fn range_inclusive_handles_degenerate_and_extreme_bounds() {
     assert!((i64::MIN..=i64::MAX).contains(&v));
 }
 
+/// With `rand` there is an operating-system entropy source, so two unseeded
+/// generators diverge.
+#[cfg(feature = "rand")]
 #[test]
 fn unseeded_generators_differ() {
-    let a = DialogueRng::from_entropy();
-    let b = DialogueRng::from_entropy();
+    let a = DialogueRng::unseeded();
+    let b = DialogueRng::unseeded();
     assert_ne!(a.next_u64(), b.next_u64());
+}
+
+/// Without `rand` there is none, and the crate does not invent one: an
+/// unseeded generator starts at the beginning of the stream, exactly as if the
+/// host had asked for seed `0`. This is the contract the `wasm32-unknown-unknown`
+/// build relies on - the clock aborts there and `RandomState` is a constant, so
+/// the only honest default is a declared one.
+#[cfg(not(feature = "rand"))]
+#[test]
+fn unseeded_generators_start_at_the_beginning_of_the_stream() {
+    let unseeded = DialogueRng::unseeded();
+    let explicit = DialogueRng::from_seed(0);
+    assert_eq!(unseeded.state(), explicit.state());
+    assert_eq!(unseeded.next_u64(), explicit.next_u64());
 }

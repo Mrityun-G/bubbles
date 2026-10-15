@@ -40,7 +40,7 @@ impl FunctionLibrary {
     /// [`RunnerBuilder::with_seed`](crate::RunnerBuilder::with_seed).
     #[must_use]
     pub fn new() -> Self {
-        Self::with_rng(&DialogueRng::from_entropy())
+        Self::with_rng(&DialogueRng::unseeded())
     }
 
     /// Creates a library whose random built-ins draw from `rng`.

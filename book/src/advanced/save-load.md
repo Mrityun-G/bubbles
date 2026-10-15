@@ -44,6 +44,8 @@ The snapshot and `HashMapStorage` both hold their entries in sorted order, so th
 
 Before 3.0.0 both types were hash maps, and `std`'s hashing is seeded per process, so identical state serialised differently on every run.
 
+One caveat for the deduplication case. `rng` is part of the state, and an *unseeded* runner starts from a number the operating system picked, so two sessions that played identically still carry different stream positions and hash differently. That is correct - the state genuinely differs - but it means content-hashing collapses duplicates only for sessions built with [`with_seed`](https://docs.rs/bubbles-dialogue/latest/bubbles/struct.RunnerBuilder.html#method.with_seed). Change detection, diffing, and golden-file tests are unaffected either way.
+
 ## Randomness survives the save
 
 `rng` means a restored session carries on the same random stream rather than starting a new one. A player who saves, quits, and reloads gets the same dice roll they would have got without the interruption - and a session built with [`with_seed`](https://docs.rs/bubbles-dialogue/latest/bubbles/struct.RunnerBuilder.html#method.with_seed) stays reproducible across the save.

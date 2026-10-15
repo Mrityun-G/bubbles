@@ -22,14 +22,20 @@
 //! WebAssembly, or, for hosts not written in Rust, a C caller going through
 //! the `bubbles-ffi` crate.
 //!
-//! **It is deterministic by construction.** Nothing here reads the clock, the
-//! environment, or a global RNG on its own initiative. The nondeterminism you
-//! can have is all opt-in, and all retractable:
+//! **It is deterministic by construction.** Nothing here reads the clock or the
+//! environment, ever. It reaches for randomness on its own initiative exactly
+//! once: an unseeded runner asks the operating system for a starting seed while
+//! it is being built. Pass [`RunnerBuilder::with_seed`] and it reaches for
+//! nothing at all. The rest of the nondeterminism is opt-in and retractable:
 //!
-//! - `rand` is a Cargo feature. Build with `default-features = false` and no
-//!   RNG is compiled in at all. That is also the configuration required to
-//!   target `wasm32-unknown-unknown`, since the default build depends on
-//!   `getrandom`, so on the web the deterministic build is the only build.
+//! - `rand` is a Cargo feature. Build with `default-features = false` and
+//!   `random`, `random_range`, `dice` and `RandomAvailable` are not compiled
+//!   in, and the crate has no entropy source: an unseeded runner starts at the
+//!   beginning of the stream, so that build replays identically whether or not
+//!   you pass a seed, and `with_seed` is how you introduce unpredictability if
+//!   you want it. That is also the configuration required to target
+//!   `wasm32-unknown-unknown`, since the default build depends on `getrandom`,
+//!   so on the web the deterministic build is the only build.
 //! - With `rand` on, [`RunnerBuilder::with_seed`] makes randomness
 //!   reproducible: `random`, `random_range`, `dice` and `RandomAvailable` all
 //!   draw from one [`DialogueRng`] the runner owns, and its position is

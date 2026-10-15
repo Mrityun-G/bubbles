@@ -23,9 +23,9 @@ A host that cannot link Rust goes through [`bubbles-ffi`](crates/bubbles-ffi/), 
 
 **It embeds without inverting your control flow.** The runtime is pull-based. You call `next_event()` when your application is ready for the next thing to happen, and nothing happens in between. There are no `async` functions in the library, no background tasks, no callbacks you must register, and no global or thread-local state, so a `Runner` is just a value you own and you can hold as many as you like. Bubbles never asks for your main loop.
 
-**It is deterministic by construction.** Nothing in the runtime reads the clock, the environment, or a global RNG on its own initiative. The only nondeterminism is what you opt into, and you can take all of it back:
+**It is deterministic by construction.** Nothing in the runtime reads the clock or the environment, ever. It reaches for randomness on its own initiative exactly once: an unseeded runner asks the operating system for a starting seed as it is built. Give it a seed and it reaches for nothing at all. The rest of the nondeterminism is what you opt into, and you can take all of it back:
 
-- `rand` is a feature. Build with `default-features = false` and the RNG is not compiled in at all.
+- `rand` is a feature. Build with `default-features = false` and `random`, `random_range`, `dice` and `RandomAvailable` are not compiled in, and the crate has no entropy source at all - an unseeded runner starts at the beginning of the stream, so that build is reproducible whether or not you pass a seed. If you want unpredictability there, pass `with_seed` a number from wherever your host gets its entropy.
 - With it on, `RunnerBuilder::with_seed(u64)` makes randomness reproducible. `random`, `random_range`, `dice`, and `RandomAvailable` all draw from one generator the runner owns, the stream position travels in the snapshot, and a strategy you write yourself is handed that generator rather than reaching for a global. The three built-ins are also ordinary entries in a function registry, so you can replace them outright if you want the rolls to come from somewhere else.
 - Line-group and node-group selection goes through an injected `SaliencyStrategy`. The default, `FirstAvailable`, is deterministic; `BestLeastRecentlyViewed` is deterministic given the same call sequence; `RandomAvailable` is the opt-in random one.
 

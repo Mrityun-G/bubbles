@@ -101,7 +101,7 @@ impl<S: VariableStorage> Runner<S> {
     /// need the session to be reproducible.
     #[must_use]
     pub fn new(program: Program, storage: S) -> Self {
-        let rng = DialogueRng::from_entropy();
+        let rng = DialogueRng::unseeded();
         let library = FunctionLibrary::with_rng(&rng);
         Self::with_parts(
             program,

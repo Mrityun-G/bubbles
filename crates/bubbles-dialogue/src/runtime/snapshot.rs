@@ -83,6 +83,6 @@ pub struct RunnerSnapshot {
     ///
     /// Snapshots written before 3.0.0 have no such field; they deserialise
     /// with a fresh OS-seeded stream, which is what those saves did anyway.
-    #[cfg_attr(feature = "serde", serde(default = "RngState::from_entropy"))]
+    #[cfg_attr(feature = "serde", serde(default = "RngState::unseeded"))]
     pub rng: RngState,
 }

@@ -408,14 +408,14 @@ fn hash_ordered_state_is_what_this_harness_can_still_catch() {
 /// Pins the one thing that still varies between processes, and that only this
 /// does.
 ///
-/// An unseeded runner takes its stream from the operating system, and the
-/// snapshot records where that stream had reached, so its save bytes cannot be
-/// identical between processes - and should not be, because the state genuinely
-/// differs. Redacting that single field has to be enough to make the bytes
-/// match: if anything else ever varies again (a map that stopped being
+/// With `rand`, an unseeded runner takes its stream from the operating system,
+/// and the snapshot records where that stream had reached, so its save bytes
+/// cannot be identical between processes - and should not be, because the state
+/// genuinely differs. Redacting that single field has to be enough to make the
+/// bytes match: if anything else ever varies again (a map that stopped being
 /// ordered, a set that started iterating), this fails rather than hiding
 /// inside a difference that was expected anyway.
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "rand"))]
 #[test]
 fn an_unseeded_save_differs_between_processes_only_in_the_recorded_stream() {
     let payloads = payloads_from_children("save-unseeded");
@@ -430,8 +430,20 @@ fn an_unseeded_save_differs_between_processes_only_in_the_recorded_stream() {
     assert_all_identical("save-unseeded (stream redacted)", &redacted);
 }
 
+/// Without `rand` there is no entropy source in the build, so even the one
+/// field that legitimately varies above does not vary here: an unseeded runner
+/// starts at the beginning of the stream and its save is byte-identical
+/// everywhere. This is the property a browser host depends on, and it fails if
+/// the crate ever reacquires a hidden entropy source for this configuration.
+#[cfg(all(feature = "serde", not(feature = "rand")))]
+#[test]
+fn an_unseeded_save_is_identical_between_processes_without_rand() {
+    let payloads = payloads_from_children("save-unseeded");
+    assert_all_identical("save-unseeded (no rand)", &payloads);
+}
+
 /// Replaces the `"rng"` value in a serialised snapshot with a fixed marker.
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "rand"))]
 fn redact_rng(payload: &str) -> String {
     const KEY: &str = "\"rng\":";
     let at = payload

@@ -42,7 +42,7 @@ impl<S: VariableStorage> RunnerBuilder<S> {
     /// [`FirstAvailable`] saliency, [`PassthroughProvider`], and randomness
     /// seeded from the operating system.
     pub fn new(program: Program, storage: S) -> Self {
-        let rng = DialogueRng::from_entropy();
+        let rng = DialogueRng::unseeded();
         Self {
             program,
             storage,
@@ -62,9 +62,13 @@ impl<S: VariableStorage> RunnerBuilder<S> {
     /// choice - in every process and on every platform.
     ///
     /// Without this call randomness is seeded from the operating system, as in
-    /// earlier releases. Either way,
-    /// [`Runner::snapshot`](crate::Runner::snapshot) records where the stream
-    /// had reached, so a restored save carries on rather than diverging.
+    /// earlier releases - except in a build without the `rand` feature, which
+    /// has no entropy source and so starts an unseeded runner at the beginning
+    /// of the stream. That is the `wasm32-unknown-unknown` configuration, so in
+    /// a browser this method is the only way to make a session unpredictable.
+    /// Either way, [`Runner::snapshot`](crate::Runner::snapshot) records where
+    /// the stream had reached, so a restored save carries on rather than
+    /// diverging.
     ///
     /// # Example
     ///

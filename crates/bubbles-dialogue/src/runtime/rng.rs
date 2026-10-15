@@ -23,11 +23,14 @@ const GAMMA: u64 = 0x9E37_79B9_7F4A_7C15;
 pub struct RngState(u64);
 
 impl RngState {
-    /// A fresh OS-seeded position, used when loading a save that predates
-    /// seeding and therefore carries no stream state.
+    /// The position an unseeded session starts from, used when loading a save
+    /// that predates seeding and therefore carries no stream state.
     #[cfg(feature = "serde")]
-    pub(crate) fn from_entropy() -> Self {
-        Self(entropy_seed())
+    // `const` only without `rand`, where the seed is a constant; keeping one
+    // signature across both feature sets matters more than that.
+    #[allow(clippy::missing_const_for_fn)]
+    pub(crate) fn unseeded() -> Self {
+        Self(initial_seed())
     }
 }
 
@@ -90,13 +93,14 @@ impl DialogueRng {
         }
     }
 
-    /// Creates a generator seeded from the operating system, as an unseeded
-    /// [`Runner`](crate::Runner) does.
+    /// Creates a generator the way an unseeded [`Runner`](crate::Runner) does:
+    /// from operating-system entropy with the `rand` feature on, and from the
+    /// start of the stream without it. See [`initial_seed`].
     ///
     /// Crate-internal: [`Default`] is the public spelling of the same thing.
     #[must_use]
-    pub(crate) fn from_entropy() -> Self {
-        Self::from_seed(entropy_seed())
+    pub(crate) fn unseeded() -> Self {
+        Self::from_seed(initial_seed())
     }
 
     /// Restarts this generator's stream from `seed`.
@@ -204,8 +208,14 @@ impl DialogueRng {
 }
 
 impl Default for DialogueRng {
+    /// An unseeded generator, matching an unseeded
+    /// [`Runner`](crate::Runner): seeded from the operating system with the
+    /// `rand` feature on, and started from the beginning of the stream without
+    /// it, because a build with no `rand` has no entropy source. Use
+    /// [`from_seed`](Self::from_seed) when the stream has to be unpredictable
+    /// in a build that has neither.
     fn default() -> Self {
-        Self::from_entropy()
+        Self::unseeded()
     }
 }
 
@@ -227,25 +237,26 @@ const fn mix(z: u64) -> u64 {
 /// Draws a seed from the operating system, matching the unseeded behaviour of
 /// releases before 3.0.0.
 #[cfg(feature = "rand")]
-fn entropy_seed() -> u64 {
+fn initial_seed() -> u64 {
     rand::random::<u64>()
 }
 
-/// Without the `rand` feature there is no OS random source in the dependency
-/// tree, so an unseeded generator falls back to the standard library's
-/// per-process hash key, which is itself OS-seeded.
+/// Without the `rand` feature there is no random source in the dependency tree
+/// and the crate does not improvise one, so an unseeded generator starts at the
+/// beginning of the stream and the whole build is reproducible by default.
+///
+/// The two things the standard library offers instead are both wrong here. The
+/// clock is not merely unavailable on `wasm32-unknown-unknown`, it aborts the
+/// module: `SystemTime::now` reaches an `unreachable` and takes every caller of
+/// [`Runner::new`](crate::Runner::new) with it. `RandomState` does not abort,
+/// but on that target its key is a compile-time constant rather than OS
+/// entropy - identical in every process - so seeding from it would claim an
+/// unpredictability that is not there. A build with no entropy source should
+/// say so; [`RunnerBuilder::with_seed`](crate::RunnerBuilder::with_seed) is how
+/// a host supplies one from wherever it does have entropy.
 #[cfg(not(feature = "rand"))]
-#[allow(clippy::cast_possible_truncation)]
-fn entropy_seed() -> u64 {
-    use std::hash::{BuildHasher as _, Hasher as _};
-
-    let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
-    hasher.write_u64(
-        std::time::SystemTime::UNIX_EPOCH
-            .elapsed()
-            .map_or(0, |d| d.as_nanos() as u64),
-    );
-    mix(hasher.finish())
+const fn initial_seed() -> u64 {
+    0
 }
 
 #[cfg(test)]
