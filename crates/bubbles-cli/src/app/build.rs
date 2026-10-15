@@ -44,7 +44,7 @@ impl AppState {
     }
 
     /// Infallible counterpart to [`Self::from_source`]: on compile error the
-    /// returned state carries an [`crate::overlay::ErrorOverlay`] and has no
+    /// returned state carries a [`crate::diagnostic::Diagnostic`] and has no
     /// active session.
     #[must_use]
     pub fn load(source: &str, start_node: &str) -> Self {
@@ -53,7 +53,7 @@ impl AppState {
     }
 
     /// Infallible counterpart to [`Self::from_sources`]: on compile error the
-    /// returned state carries an [`crate::overlay::ErrorOverlay`] and has no
+    /// returned state carries a [`crate::diagnostic::Diagnostic`] and has no
     /// active session.
     #[must_use]
     pub fn load_many(sources: &[(&str, &str)], start_node: &str) -> Self {
@@ -87,6 +87,7 @@ impl AppState {
             error_overlay: None,
             history: Vec::new(),
             recording: true,
+            help_visible: false,
             quit_requested: false,
         }
     }

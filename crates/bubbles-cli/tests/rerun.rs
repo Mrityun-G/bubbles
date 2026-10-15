@@ -1,6 +1,6 @@
 //! Rerun tests: re-running from the start node while keeping runtime state.
 
-use bubbles_tui::{AppState, Intent};
+use bubbles_cli::{AppState, Intent};
 
 const WITH_ONCE: &str = "title: Start\n---\n<<once>>\n    NPC: First time here.\n<<else>>\n    NPC: Back again.\n<<endonce>>\n===\n";
 

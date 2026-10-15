@@ -122,4 +122,4 @@ Good. Now let's zoom into the `.bub` format itself.
 
 ---
 
-> **Next:** [Using the TUI](./tui.md)
+> **Next:** [Using the CLI](./cli.md)

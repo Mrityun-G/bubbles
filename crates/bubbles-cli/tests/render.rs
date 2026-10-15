@@ -1,6 +1,6 @@
 //! Render tests use ratatui's `TestBackend` so no real terminal is needed.
 
-use bubbles_tui::{AppState, Intent, render};
+use bubbles_cli::{AppState, Intent, render};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 

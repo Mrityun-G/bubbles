@@ -1,6 +1,6 @@
 //! Option-handling tests: focus, direct selection, guard rendering.
 
-use bubbles_tui::{AppState, DisplayedOption, Intent, render};
+use bubbles_cli::{AppState, DisplayedOption, Intent, render};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 

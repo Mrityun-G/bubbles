@@ -1,6 +1,6 @@
 //! Rewind tests: stepping backward through the visible dialogue history.
 
-use bubbles_tui::{AppState, Intent};
+use bubbles_cli::{AppState, Intent};
 
 const THREE_LINES: &str = "title: A\n---\nOne.\nTwo.\nThree.\n===\n";
 const BRANCH: &str =

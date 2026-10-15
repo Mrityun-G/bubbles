@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ensure the bubbles-dialogue library stays usable on wasm32-unknown-unknown.
 # We use --lib only: dev-dependencies (e.g. proptest) are not wasm-clean, and
-# the bubbles-tui binary deliberately targets native terminals, not wasm.
+# the bubbles-cli binary deliberately targets native terminals, not wasm.
 #
 # Compiling is not enough. A call that diverges on this target - `SystemTime`
 # is the obvious one, since std lowers it to an `unreachable` here - compiles

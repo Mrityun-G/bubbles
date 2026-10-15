@@ -4,7 +4,7 @@
 //! through the TUI model: cross-file jumps, reload, rewind, and that error
 //! overlays point to the correct source file.
 
-use bubbles_tui::{AppState, Intent};
+use bubbles_cli::{AppState, Intent};
 
 // Two minimal scripts that together form a complete program via a cross-file jump.
 const MAIN: &str = "title: Main\n---\nHello from main.\n<<jump Other>>\n===\n";

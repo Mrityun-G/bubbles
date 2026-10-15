@@ -1,33 +1,37 @@
-//! Error overlay: a view-model for compile- and runtime-error popups.
+//! [`Diagnostic`] - the one place a [`DialogueError`] is turned into words.
+//!
+//! Both front ends consume it, so they can never drift apart: `bubbles check`
+//! prints a diagnostic as a single line, and the player draws the same one in
+//! its error overlay.
 
 use bubbles::DialogueError;
 
 /// A file + line location associated with an error, when the underlying
 /// [`DialogueError`] variant carries one.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ErrorLocation {
+pub struct DiagnosticLocation {
     /// Source file name as reported by the compiler.
     pub file: String,
     /// 1-based line number.
     pub line: usize,
 }
 
-/// View-model for the error overlay popup.
+/// A compile- or runtime-error rendered for a human.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ErrorOverlay {
-    /// Short category string drawn in the overlay title
-    /// (e.g. `"Parse error"`, `"Runtime error"`).
+pub struct Diagnostic {
+    /// Short category string (e.g. `"Parse error"`, `"Runtime error"`), drawn
+    /// in the overlay title and printed before the message by `check`.
     pub title: String,
     /// Human-readable error message.
     pub message: String,
     /// Optional source location (`file:line`).
-    pub location: Option<ErrorLocation>,
+    pub location: Option<DiagnosticLocation>,
     /// Optional excerpt of the offending source line, for parse errors.
     pub excerpt: Option<String>,
 }
 
-impl ErrorOverlay {
-    /// Builds an overlay from a [`DialogueError`].  When the error is a
+impl Diagnostic {
+    /// Builds a diagnostic from a [`DialogueError`].  When the error is a
     /// [`DialogueError::Parse`] and `source` is provided, the offending line
     /// is attached as an excerpt.
     #[must_use]
@@ -40,7 +44,7 @@ impl ErrorOverlay {
             } => Self {
                 title: "Parse error".to_owned(),
                 message: message.clone(),
-                location: Some(ErrorLocation {
+                location: Some(DiagnosticLocation {
                     file: file.clone(),
                     line: *line,
                 }),
@@ -73,12 +77,12 @@ impl ErrorOverlay {
         }
     }
 
-    /// Overlay with `title` and the error's own `Display` text, no location.
+    /// Diagnostic with `title` and the error's own `Display` text, no location.
     fn plain(title: &str, error: &DialogueError) -> Self {
         Self::with_message(title, error.to_string())
     }
 
-    /// Overlay with `title` and `message`, no location or excerpt.
+    /// Diagnostic with `title` and `message`, no location or excerpt.
     fn with_message(title: &str, message: String) -> Self {
         Self {
             title: title.to_owned(),
@@ -94,6 +98,20 @@ impl ErrorOverlay {
         self.location
             .as_ref()
             .map(|loc| format!("{}:{}", loc.file, loc.line))
+    }
+
+    /// The diagnostic as exactly one line of text, for `bubbles check`.
+    ///
+    /// `"<file>:<line>: <title>: <message>"`, or `"<title>: <message>"` when
+    /// the error carries no location.  Embedded newlines are folded to spaces
+    /// so a diagnostic always occupies a single line of output.
+    #[must_use]
+    pub fn one_line(&self) -> String {
+        let message = self.message.split('\n').collect::<Vec<_>>().join(" ");
+        self.location_string().map_or_else(
+            || format!("{}: {message}", self.title),
+            |at| format!("{at}: {}: {message}", self.title),
+        )
     }
 }
 
