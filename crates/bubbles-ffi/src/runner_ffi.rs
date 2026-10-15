@@ -58,9 +58,11 @@ pub unsafe extern "C" fn bubbles_runner_start(
     }
 }
 
-/// Advances the runner. On [`BUBBLES_OK`], `*out_event_json` is a newly allocated NUL-terminated
-/// UTF-8 JSON string (free with [`crate::bubbles_string_free`]). On [`BUBBLES_DONE`], dialogue has ended
-/// and `*out_event_json` is set to null. On [`BUBBLES_ERR`], see [`crate::bubbles_last_error`].
+/// Advances the runner.
+///
+/// On [`BUBBLES_OK`], `*out_event_json` is a newly allocated NUL-terminated UTF-8 JSON string
+/// (free with [`crate::bubbles_string_free`]). On [`BUBBLES_DONE`], dialogue has ended and
+/// `*out_event_json` is set to null. On [`BUBBLES_ERR`], see [`crate::bubbles_last_error`].
 ///
 /// # Safety
 ///

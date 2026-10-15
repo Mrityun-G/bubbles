@@ -28,7 +28,7 @@ pub unsafe extern "C" fn bubbles_program_node_exists(
     let name = ffi_try!(unsafe { str_from_parts(node_ptr, node_len) });
     clear_err();
     unsafe {
-        *out_exists = if prog.node_exists(name) { 1 } else { 0 };
+        *out_exists = c_int::from(prog.node_exists(name));
     }
     BUBBLES_OK
 }
@@ -74,10 +74,10 @@ pub unsafe extern "C" fn bubbles_program_node_tags_json(
     let prog = ffi_try!(unsafe { program_ref(program) });
     let title = ffi_try!(unsafe { str_from_parts(title_ptr, title_len) });
     clear_err();
-    let j = match prog.node_tags(title) {
-        Some(tags) => serde_json::to_string(tags).unwrap_or_else(|_| "null".into()),
-        None => "null".into(),
-    };
+    let j = prog
+        .node_tags(title)
+        .and_then(|tags| serde_json::to_string(tags).ok())
+        .unwrap_or_else(|| "null".into());
     write_cstring_out(out_json, j)
 }
 

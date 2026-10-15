@@ -21,7 +21,7 @@ pub unsafe extern "C" fn bubbles_copy_utf8(ptr: *const c_char, len: usize) -> *m
     match unsafe { str_from_parts(ptr, len) } {
         Ok(s) => CString::new(s)
             .ok()
-            .map_or(std::ptr::null_mut(), |c| c.into_raw()),
+            .map_or(std::ptr::null_mut(), CString::into_raw),
         Err(e) => {
             set_err(e);
             std::ptr::null_mut()
@@ -48,10 +48,11 @@ pub unsafe extern "C" fn bubbles_runner_variable_get_json(
     let runner = ffi_try!(unsafe { runner_ref(runner) });
     let key = ffi_try!(unsafe { str_from_parts(name_ptr, name_len) });
     clear_err();
-    let j = match runner.storage().get(key) {
-        Some(v) => value_to_json_string(&v).unwrap_or_else(|_| "null".into()),
-        None => "null".into(),
-    };
+    let j = runner
+        .storage()
+        .get(key)
+        .and_then(|v| value_to_json_string(&v).ok())
+        .unwrap_or_else(|| "null".into());
     write_cstring_out(out_json, j)
 }
 
@@ -130,10 +131,10 @@ pub unsafe extern "C" fn bubbles_runner_restore_storage_json(
     json_len: usize,
 ) -> c_int {
     let runner = ffi_try!(unsafe { runner_mut(runner) });
-    let json_str = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
+    let text = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
     clear_err();
     let mut new_storage: HashMapStorage =
-        ffi_try!(serde_json::from_str(json_str).map_err(|e| format!("storage JSON: {e}")));
+        ffi_try!(serde_json::from_str(text).map_err(|e| format!("storage JSON: {e}")));
     mem::swap(runner.storage_mut(), &mut new_storage);
     BUBBLES_OK
 }
@@ -150,10 +151,10 @@ pub unsafe extern "C" fn bubbles_runner_restore_session_json(
     json_len: usize,
 ) -> c_int {
     let runner = ffi_try!(unsafe { runner_mut(runner) });
-    let json_str = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
+    let text = ffi_try!(unsafe { str_from_parts(json_ptr, json_len) });
     clear_err();
     let snap: RunnerSnapshot =
-        ffi_try!(serde_json::from_str(json_str).map_err(|e| format!("session JSON: {e}")));
+        ffi_try!(serde_json::from_str(text).map_err(|e| format!("session JSON: {e}")));
     match runner.restore(snap) {
         Ok(()) => BUBBLES_OK,
         Err(e) => {
