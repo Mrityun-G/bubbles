@@ -1,9 +1,9 @@
 //! [`FunctionLibrary`] - built-in functions and host-registration API.
 
-mod i18n;
 mod math;
 #[cfg(feature = "rand")]
 mod rand;
+mod text;
 
 use std::collections::HashMap;
 
@@ -17,6 +17,15 @@ pub type HostFn = Box<dyn Fn(Vec<Value>) -> Result<Value> + Send + Sync + 'stati
 ///
 /// Built-in functions (`round`, `dice`, `random_range`, …) are pre-registered.
 /// Hosts can add their own via [`FunctionLibrary::register`].
+///
+/// Two of the built-ins shape text rather than internationalise it, and both
+/// have limits worth knowing before you lean on them. `plural(n, sing, plur)`
+/// applies one two-form rule - singular when `|n|` is 1, plural otherwise -
+/// which is wrong for languages with other plural categories; supply a
+/// CLDR-correct implementation by registering it under the same name.
+/// `select(key, "k1:a|k2:b|other:c")` has no escape mechanism for its `|` and
+/// `:` separators, so a key containing either, or a value containing `|`,
+/// cannot be expressed at all.
 pub struct FunctionLibrary {
     fns: HashMap<String, HostFn>,
 }
@@ -62,7 +71,7 @@ impl FunctionLibrary {
         #[cfg(feature = "rand")]
         self.register_rand_builtins();
         self.register_math_builtins();
-        self.register_i18n_builtins();
+        self.register_text_builtins();
     }
 }
 
