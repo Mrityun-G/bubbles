@@ -12,6 +12,11 @@
 //! host author codes against, so a promise drifting away from the code is a
 //! defect in the contract even when the code is self-consistent.
 
+// A test target does not inherit the lib's crate-level attributes, so the
+// workspace `unsafe_code = "deny"` applies here on its own. Calling the ABI is
+// the point of the file.
+#![allow(unsafe_code)]
+
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 
 use bubbles_ffi::{
@@ -59,7 +64,7 @@ const BAD_UTF8: &[u8] = &[0x80, 0xFF];
 fn compile_ok(src: &str) -> *mut c_void {
     let mut program: *mut c_void = std::ptr::null_mut();
     let text = CString::new(src).expect("fixture has no interior NUL");
-    let rc = unsafe { bubbles_compile(text.as_ptr(), text.as_bytes().len(), &mut program) };
+    let rc = unsafe { bubbles_compile(text.as_ptr(), text.as_bytes().len(), &raw mut program) };
     assert_eq!(rc, BUBBLES_OK, "fixture failed to compile: {:?}", error());
     assert!(!program.is_null());
     program
@@ -68,7 +73,7 @@ fn compile_ok(src: &str) -> *mut c_void {
 fn runner_ok(src: &str) -> *mut c_void {
     let program = compile_ok(src);
     let mut runner: *mut c_void = std::ptr::null_mut();
-    let rc = unsafe { bubbles_runner_new(program, &mut runner) };
+    let rc = unsafe { bubbles_runner_new(program, &raw mut runner) };
     assert_eq!(rc, BUBBLES_OK);
     assert!(!runner.is_null());
     runner
@@ -112,7 +117,7 @@ fn drain(runner: *mut c_void) -> Vec<String> {
     let mut events = Vec::new();
     loop {
         let mut json: *mut c_char = std::ptr::null_mut();
-        let rc = unsafe { bubbles_runner_next_event(runner, &mut json) };
+        let rc = unsafe { bubbles_runner_next_event(runner, &raw mut json) };
         if rc == BUBBLES_DONE {
             assert!(json.is_null(), "ABI.md: BUBBLES_DONE sets *out to NULL");
             break;
@@ -124,9 +129,7 @@ fn drain(runner: *mut c_void) -> Vec<String> {
                 .into_owned(),
         );
         unsafe { bubbles_string_free(json) };
-        if events.len() > 64 {
-            panic!("fixture did not terminate");
-        }
+        assert!(events.len() <= 64, "fixture did not terminate");
     }
     events
 }
@@ -137,7 +140,7 @@ fn drain(runner: *mut c_void) -> Vec<String> {
 fn pump_until_error(runner: *mut c_void) -> String {
     for _ in 0..32 {
         let mut json: *mut c_char = std::ptr::null_mut();
-        let rc = unsafe { bubbles_runner_next_event(runner, &mut json) };
+        let rc = unsafe { bubbles_runner_next_event(runner, &raw mut json) };
         if rc == BUBBLES_ERR {
             assert!(json.is_null(), "a failed event pump wrote *out_event_json");
             return error().expect("BUBBLES_ERR left no message");
@@ -152,7 +155,7 @@ fn pump_until_error(runner: *mut c_void) -> String {
 fn drain_to_options(runner: *mut c_void) -> usize {
     for _ in 0..32 {
         let mut json: *mut c_char = std::ptr::null_mut();
-        let rc = unsafe { bubbles_runner_next_event(runner, &mut json) };
+        let rc = unsafe { bubbles_runner_next_event(runner, &raw mut json) };
         assert_eq!(rc, BUBBLES_OK, "ran out of events before Options");
         let text = unsafe { CStr::from_ptr(json) }
             .to_string_lossy()
@@ -185,30 +188,30 @@ fn null_handles_are_reported_rather_than_dereferenced() {
 
     unsafe {
         assert_reported(
-            bubbles_program_node_exists(null, n, nl, &mut out_exists),
+            bubbles_program_node_exists(null, n, nl, &raw mut out_exists),
             "node_exists(NULL program)",
         );
         assert_reported(
-            bubbles_program_node_titles_json(null, &mut out_json),
+            bubbles_program_node_titles_json(null, &raw mut out_json),
             "node_titles_json(NULL program)",
         );
         assert_reported(
-            bubbles_program_node_tags_json(null, n, nl, &mut out_json),
+            bubbles_program_node_tags_json(null, n, nl, &raw mut out_json),
             "node_tags_json(NULL program)",
         );
         assert_reported(
-            bubbles_program_variable_declarations_json(null, &mut out_json),
+            bubbles_program_variable_declarations_json(null, &raw mut out_json),
             "variable_declarations_json(NULL program)",
         );
         assert_reported(
-            bubbles_runner_new(null, &mut out_runner),
+            bubbles_runner_new(null, &raw mut out_runner),
             "runner_new(NULL program)",
         );
         assert_reported(
             bubbles_runner_new_with_saliency(
                 null,
                 BUBBLES_SALIENCY_FIRST_AVAILABLE,
-                &mut out_runner,
+                &raw mut out_runner,
             ),
             "runner_new_with_saliency(NULL program)",
         );
@@ -217,7 +220,7 @@ fn null_handles_are_reported_rather_than_dereferenced() {
             "runner_start(NULL runner)",
         );
         assert_reported(
-            bubbles_runner_next_event(null, &mut out_json),
+            bubbles_runner_next_event(null, &raw mut out_json),
             "next_event(NULL runner)",
         );
         assert_reported(
@@ -237,7 +240,7 @@ fn null_handles_are_reported_rather_than_dereferenced() {
             "register_function(NULL runner)",
         );
         assert_reported(
-            bubbles_runner_variable_get_json(null, n, nl, &mut out_json),
+            bubbles_runner_variable_get_json(null, n, nl, &raw mut out_json),
             "variable_get_json(NULL runner)",
         );
         assert_reported(
@@ -245,11 +248,11 @@ fn null_handles_are_reported_rather_than_dereferenced() {
             "variable_set_json(NULL runner)",
         );
         assert_reported(
-            bubbles_runner_snapshot_session_json(null, &mut out_json),
+            bubbles_runner_snapshot_session_json(null, &raw mut out_json),
             "snapshot_session_json(NULL runner)",
         );
         assert_reported(
-            bubbles_runner_snapshot_storage_json(null, &mut out_json),
+            bubbles_runner_snapshot_storage_json(null, &raw mut out_json),
             "snapshot_storage_json(NULL runner)",
         );
         assert_reported(
@@ -328,17 +331,17 @@ fn null_out_parameters_are_reported_rather_than_written() {
 /// a recognisable non-NULL value rather than NULL.
 #[test]
 fn out_parameters_are_untouched_on_error() {
-    let program = compile_ok(BASIC);
-    let runner = runner_ok(BASIC);
-
     const SENTINEL_PTR: *mut c_char = 0x1234_usize as *mut c_char;
     const SENTINEL_HANDLE: *mut c_void = 0x1234_usize as *mut c_void;
     const SENTINEL_INT: c_int = 7;
 
+    let program = compile_ok(BASIC);
+    let runner = runner_ok(BASIC);
+
     // A syntactically invalid program.
     let mut out_program = SENTINEL_HANDLE;
     let bad = CString::new("-> dangling option outside a node\n").unwrap();
-    let rc = unsafe { bubbles_compile(bad.as_ptr(), bad.as_bytes().len(), &mut out_program) };
+    let rc = unsafe { bubbles_compile(bad.as_ptr(), bad.as_bytes().len(), &raw mut out_program) };
     assert_reported(rc, "compile(invalid source)");
     assert_eq!(
         out_program, SENTINEL_HANDLE,
@@ -352,7 +355,7 @@ fn out_parameters_are_untouched_on_error() {
             program,
             BAD_UTF8.as_ptr().cast::<c_char>(),
             BAD_UTF8.len(),
-            &mut out_exists,
+            &raw mut out_exists,
         )
     };
     assert_reported(rc, "node_exists(invalid utf-8)");
@@ -367,7 +370,7 @@ fn out_parameters_are_untouched_on_error() {
             program,
             BAD_UTF8.as_ptr().cast::<c_char>(),
             BAD_UTF8.len(),
-            &mut out_json,
+            &raw mut out_json,
         )
     };
     assert_reported(rc, "node_tags_json(invalid utf-8)");
@@ -382,7 +385,7 @@ fn out_parameters_are_untouched_on_error() {
             runner,
             BAD_UTF8.as_ptr().cast::<c_char>(),
             BAD_UTF8.len(),
-            &mut out_json,
+            &raw mut out_json,
         )
     };
     assert_reported(rc, "variable_get_json(invalid utf-8)");
@@ -393,7 +396,7 @@ fn out_parameters_are_untouched_on_error() {
 
     // An event pump that fails before producing an event.
     let mut out_json = SENTINEL_PTR;
-    let rc = unsafe { bubbles_runner_next_event(std::ptr::null_mut(), &mut out_json) };
+    let rc = unsafe { bubbles_runner_next_event(std::ptr::null_mut(), &raw mut out_json) };
     assert_reported(rc, "next_event(NULL runner)");
     assert_eq!(
         out_json, SENTINEL_PTR,
@@ -427,7 +430,12 @@ fn a_rejected_constructor_call_leaves_the_program_owned_by_the_caller() {
     let name = CString::new("Start").unwrap();
     let mut exists: c_int = 0;
     let rc = unsafe {
-        bubbles_program_node_exists(program, name.as_ptr(), name.as_bytes().len(), &mut exists)
+        bubbles_program_node_exists(
+            program,
+            name.as_ptr(),
+            name.as_bytes().len(),
+            &raw mut exists,
+        )
     };
     assert_eq!(rc, BUBBLES_OK);
     assert_eq!(exists, 1);
@@ -453,7 +461,7 @@ fn an_invalid_saliency_kind_is_reported_without_writing_the_out_handle() {
     let program = compile_ok(BASIC);
     let mut runner: *mut c_void = 0x1234_usize as *mut c_void;
 
-    let rc = unsafe { bubbles_runner_new_with_saliency(program, 99, &mut runner) };
+    let rc = unsafe { bubbles_runner_new_with_saliency(program, 99, &raw mut runner) };
     assert_reported(rc, "runner_new_with_saliency(invalid kind)");
     assert_eq!(
         runner, 0x1234_usize as *mut c_void,
@@ -589,11 +597,11 @@ fn compile_files_validates_its_array() {
     let mut out: *mut c_void = std::ptr::null_mut();
     unsafe {
         assert_reported(
-            bubbles_compile_files(std::ptr::null(), 0, &mut out),
+            bubbles_compile_files(std::ptr::null(), 0, &raw mut out),
             "compile_files(count 0)",
         );
         assert_reported(
-            bubbles_compile_files(std::ptr::null(), 2, &mut out),
+            bubbles_compile_files(std::ptr::null(), 2, &raw mut out),
             "compile_files(NULL array)",
         );
     }
@@ -633,7 +641,7 @@ unsafe extern "C" fn host_fails_with_message(
 }
 
 /// A non-conforming failure: claims success and leaves the result pointer NULL.
-unsafe extern "C" fn host_leaves_null(
+const unsafe extern "C" fn host_leaves_null(
     _userdata: *mut c_void,
     _args_ptr: *const c_char,
     _args_len: usize,
@@ -715,7 +723,7 @@ fn the_error_slot_does_not_leak_between_threads() {
         error().expect("the child thread should see its own error")
     });
     let seen_by_child = child.join().expect("child thread panicked");
-    assert!(!seen_by_child.is_empty());
+    assert_ne!(seen_by_child, "", "the child saw an empty message");
 
     assert!(
         error().is_none(),
