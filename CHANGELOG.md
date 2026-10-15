@@ -48,6 +48,14 @@ are not published to crates.io.
   table, when it replaces it. Both would have misled a host author.
 - The guide's API index listed only two of the three shipped saliency
   strategies; `RandomAvailable` is now linked alongside them.
+- Deep links into the rustdoc pointed at pages that were never generated.
+  Items re-exported at the crate root from public modules are documented only
+  at their module path by default, so `bubbles/struct.Runner.html` did not
+  exist and all 55 links written in that short form — across the guide, the
+  README and the crate docs — returned 404, including 17 of the 18 on the
+  guide's API index. The root re-exports now carry `#[doc(inline)]`, which
+  makes `bubbles::Runner` the canonical path callers are already told to
+  import. No links were rewritten.
 - `LICENSE-APACHE` now contains the full Apache License 2.0 text. It previously
   held only the short "how to apply the license" boilerplate notice, so the
   repository referenced Apache-2.0 without shipping its terms, and GitHub's

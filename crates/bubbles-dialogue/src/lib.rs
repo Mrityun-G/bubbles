@@ -85,8 +85,9 @@
 //! | [`library`] | [`FunctionLibrary`] and built-in functions |
 //! | [`saliency`] | [`SaliencyStrategy`], [`FirstAvailable`], [`BestLeastRecentlyViewed`], `RandomAvailable` (`rand` feature) |
 //!
-//! Lint policy is defined once in `Cargo.toml` under `[lints.rust]` /
-//! `[lints.clippy]`; we deliberately do not duplicate it here.
+//! Lint policy is defined once in the workspace root `Cargo.toml` under
+//! `[workspace.lints]` and inherited here via `[lints] workspace = true`; we deliberately do
+//! not duplicate it in this file.
 
 pub mod compiler;
 pub mod error;
@@ -95,16 +96,29 @@ pub mod runtime;
 pub mod saliency;
 pub mod value;
 
+// `#[doc(inline)]` on every root re-export is load-bearing, not cosmetic. The modules above
+// are public, so by default rustdoc documents each item only at its canonical module path and
+// leaves `bubbles/struct.Runner.html` unwritten — every link written in the short form 404s.
+// Inlining makes the root the canonical path, which is also the path callers are told to
+// import (`use bubbles::Runner`). Keep it on anything added here.
+#[doc(inline)]
 pub use compiler::{Program, VariableDecl, compile, compile_many, validate};
+#[doc(inline)]
 pub use error::{DialogueError, Result};
+#[doc(inline)]
 pub use library::FunctionLibrary;
+#[doc(inline)]
 pub use runtime::RunnerSnapshot;
+#[doc(inline)]
 pub use runtime::{
     DialogueEvent, DialogueOption, HashMapProvider, LineMode, LineProvider, MarkupSpan,
     PassthroughProvider, Runner, RunnerBuilder, RunnerPhase, line_id_from_tags,
     line_mode_from_tags, option_group_from_tags,
 };
 #[cfg(feature = "rand")]
+#[doc(inline)]
 pub use saliency::RandomAvailable;
+#[doc(inline)]
 pub use saliency::{BestLeastRecentlyViewed, Candidate, FirstAvailable, SaliencyStrategy};
+#[doc(inline)]
 pub use value::{HashMapStorage, Value, VariableStorage};
